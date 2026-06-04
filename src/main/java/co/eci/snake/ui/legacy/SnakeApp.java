@@ -11,6 +11,7 @@ import co.eci.snake.core.engine.GameClock;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -194,6 +195,9 @@ public final class SnakeApp extends JFrame {
       Thread.ofVirtual().start(() -> {
         try {
           pauseControl.pauseAndWaitForAll();
+          if (pauseControl.isPaused()) {
+            SwingUtilities.invokeLater(this::showStats);
+          }
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
         }
@@ -203,6 +207,30 @@ public final class SnakeApp extends JFrame {
       pauseControl.resume();
       clock.resume();
     }
+  }
+
+  /**
+   * Muestra estadísticas del juego en un diálogo.
+   * Se llama desde el EDT después de que pauseAndWaitForAll() confirma
+   * que todos los runners están bloqueados (estado estable).
+   *
+   * Muestra la serpiente viva más larga y las longitudes de todas.
+   */
+  private void showStats() {
+    Snake longest = snakes.stream()
+        .max(Comparator.comparingInt(s -> s.snapshot().size()))
+        .orElse(null);
+
+    StringBuilder sb = new StringBuilder("=== Estadísticas (Pausa) ===\n");
+    if (longest != null) {
+      sb.append("Serpiente más larga: longitud ").append(longest.snapshot().size()).append("\n");
+    }
+    sb.append("\nLongitudes:\n");
+    for (int i = 0; i < snakes.size(); i++) {
+      sb.append("  Serpiente ").append(i).append(": ")
+        .append(snakes.get(i).snapshot().size()).append("\n");
+    }
+    JOptionPane.showMessageDialog(this, sb.toString(), "Pausa", JOptionPane.INFORMATION_MESSAGE);
   }
 
   /**

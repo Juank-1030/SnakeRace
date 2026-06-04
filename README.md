@@ -21,10 +21,12 @@ mvn -q -DskipTests exec:java -Dsnakes=4
 ```
 
 - `-Dsnakes=N` → inicia el juego con **N** serpientes (por defecto 2).
+  - Con **N ≥ 2** se habilita la segunda serpiente controlada por WASD.
+  - Serpientes 0 y 1 son de jugadores (solo teclado). Serpientes 2+ son IA (movimiento autónomo).
 - **Controles**:
-  - **Flechas**: serpiente **0** (Jugador 1).
-  - **WASD**: serpiente **1** (si existe).
-  - **Espacio** o botón **Action**: Pausar / Reanudar.
+  - **Flechas** (←↑↓→): serpiente **0** (Jugador 1).
+  - **WASD** (W↑ A← S↓ D→): serpiente **1** (Jugador 2, solo si N ≥ 2).
+  - **Espacio** o botón **Action**: Pausar / Reanudar. Al pausar se muestra un diálogo con estadísticas (longitud de cada serpiente y la más larga).
 
 ---
 
@@ -718,9 +720,14 @@ El proyecto partió de una implementación de referencia en `main/java/` que ten
 
 - **Rebote en obstáculos**: al chocar, la serpiente gira aleatoriamente (`randomTurn()`) y sigue viva.
 - **Sin muerte**: no hay concepto de serpiente muerta; no se usa `markDead()`/`isDead()`/`deathTime()`.
-- **Sin estadísticas**: no hay diálogo de estadísticas al pausar.
 - **Autonomía de IA**: las serpientes 2+ giran aleatoriamente con probabilidad configurable.
 - **Turbo, teletransportadores, ratones**: idéntico comportamiento.
+
+#### Funcionalidad agregada (no presente en `main`)
+
+- **Estadísticas al pausar**: al presionar *Action* o *Espacio*, después de que todos los runners se bloquean, se muestra un `JOptionPane` con la serpiente más larga y las longitudes individuales de cada serpiente. La verificación `pauseControl.isPaused()` evita mostrar el diálogo si el usuario reanudó antes de que la recolección terminara.
+- **CopyOnWriteArrayList**: reemplaza a `ArrayList` para iteración segura desde el EDT sin locks.
+- **Shutdown coordinado**: al cerrar la ventana se interrumpen todos los virtual threads y se apaga el scheduler del reloj.
 
 #### Resumen de líneas por archivo
 
