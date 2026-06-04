@@ -17,6 +17,32 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * Ventana principal del juego SnakeRace.
+ *
+ * Actualización vs referencia (main/):
+ * - snakes: CopyOnWriteArrayList para iteración segura desde EDT
+ *   sin locks (R-2 en README, sección 4).
+ * - autoPilot: serpientes 0 y 1 con autoPilot=false, 2+ con true
+ *   (DR-1 en README, sección 1).
+ * - PauseControl: monitor con wait/notifyAll para pausa cooperativa
+ *   (DL-1, DL-2 corregidos en README, sección 2).
+ * - Shutdown coordinado: exec.shutdownNow() + clock.close() al cerrar
+ *   ventana (README, sección 3).
+ * - GameClock con cancel/reschedule (BW-1, R-3 en README).
+ *
+ * Hilos involucrados:
+ * 1. EDT — crea la ventana, procesa teclado (flechas/WASD), repinta UI.
+ * 2. N VirtualThreads (SnakeRunner) — uno por serpiente, ciclo autónomo.
+ * 3. 1 VirtualThread (pauseAndWaitForAll) — temporal, creado al pausar.
+ * 4. SchedulerThread (GameClock) — dispara repaint cada 60ms.
+ *
+ * @see SnakeRunner
+ * @see PauseControl
+ * @see GameClock
+ * @see Board
+ * @see <a href="file:../../../../../../README.md">README.md — Parte II, secciones 1-4</a>
+ */
 public final class SnakeApp extends JFrame {
 
   private final Board board;
@@ -147,6 +173,20 @@ public final class SnakeApp extends JFrame {
     clock.start();
   }
 
+  /**
+   * Alterna entre pausar y reanudar el juego.
+   *
+   * Al pausar:
+   * 1. Cambia el texto del botón a "Resume".
+   * 2. clock.pause() — cancela el ScheduledFuture del repintado.
+   * 3. Crea un virtual thread que llama a pauseControl.pauseAndWaitForAll()
+   *    para esperar a que todos los runners estén bloqueados.
+   *
+   * Al reanudar:
+   * 1. pauseControl.resume() — despierta todos los runners.
+   * 2. clock.resume() — reprograma el tick de repintado.
+   * 3. Restaura el texto del botón a "Action".
+   */
   private void togglePause() {
     if ("Action".equals(actionButton.getText())) {
       actionButton.setText("Resume");
@@ -165,6 +205,19 @@ public final class SnakeApp extends JFrame {
     }
   }
 
+  /**
+   * Panel de dibujo del juego. Lee el estado del Board y las serpientes
+   * para pintar la cuadrícula, obstáculos, ratones, turbos,
+   * teletransportadores y serpientes en cada repaint.
+   *
+   * Concurrencia:
+   * - Se ejecuta en el EDT, invocado por GameClock vía
+   *   SwingUtilities.invokeLater.
+   * - Llama a board.mice(), board.obstacles(), etc. que usan readLock
+   *   (múltiples lectores simultáneos permitidos).
+   * - Llama a snake.snapshot() que está sincronizado con el monitor de
+   *   Snake, garantizando consistencia.
+   */
   public static final class GamePanel extends JPanel {
     private final Board board;
     private final Supplier snakesSupplier;
@@ -194,7 +247,6 @@ public final class SnakeApp extends JFrame {
       for (int y = 0; y <= board.height(); y++)
         g2.drawLine(0, y * cell, board.width() * cell, y * cell);
 
-      // Obstáculos
       g2.setColor(new Color(255, 102, 0));
       for (var p : board.obstacles()) {
         int x = p.x() * cell, y = p.y() * cell;
@@ -206,7 +258,6 @@ public final class SnakeApp extends JFrame {
         g2.setColor(new Color(255, 102, 0));
       }
 
-      // Ratones
       g2.setColor(Color.BLACK);
       for (var p : board.mice()) {
         int x = p.x() * cell, y = p.y() * cell;
@@ -216,7 +267,6 @@ public final class SnakeApp extends JFrame {
         g2.setColor(Color.BLACK);
       }
 
-      // Teleports (flechas rojas)
       Map<Position, Position> tp = board.teleports();
       g2.setColor(Color.RED);
       for (var entry : tp.entrySet()) {
@@ -227,7 +277,6 @@ public final class SnakeApp extends JFrame {
         g2.fillPolygon(xs, ys, xs.length);
       }
 
-      // Turbo (rayos)
       g2.setColor(Color.BLACK);
       for (var p : board.turbo()) {
         int x = p.x() * cell, y = p.y() * cell;
@@ -236,7 +285,6 @@ public final class SnakeApp extends JFrame {
         g2.fillPolygon(xs, ys, xs.length);
       }
 
-      // Serpientes
       var snakes = snakesSupplier.get();
       int idx = 0;
       for (Snake s : snakes) {

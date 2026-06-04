@@ -9,6 +9,24 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
+/**
+ * Tablero de juego. Contiene todos los elementos del juego: serpientes,
+ * ratones, obstáculos, turbos y teletransportadores.
+ *
+ * Actualización vs referencia (main/):
+ * - Se reemplazó {@code synchronized} por {@link ReentrantReadWriteLock}
+ *   para permitir lecturas concurrentes del EDT mientras los runners
+ *   se turnan para escribir (R-1 en README, sección 4).
+ * - getters (mice, obstacles, turbo, teleports) → readLock
+ * - step() → writeLock
+ * - randomEmpty() sin cambios: sigue siendo privado y llamado solo
+ *   desde el constructor o step() (CR-3, CR-4 en README).
+ *
+ * @see Snake
+ * @see co.eci.snake.concurrency.SnakeRunner
+ * @see co.eci.snake.ui.legacy.SnakeApp.GamePanel
+ * @see <a href="file:../../../../../../README.md">README.md — Parte II, sección 2</a>
+ */
 public final class Board {
   private final int width;
   private final int height;
@@ -18,8 +36,6 @@ public final class Board {
   private final Set<Position> turbo = new HashSet<>();
   private final Map<Position, Position> teleports = new HashMap<>();
 
-  // R-1: ReadWriteLock permite múltiples lectores (UI) simultáneos y exclusividad
-  // para escrituras (runners)
   private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
 
   public enum MoveResult {
@@ -48,7 +64,10 @@ public final class Board {
     return height;
   }
 
-  // R-1: métodos de lectura usan readLock → varios hilos pueden leer a la vez
+  /**
+   * Retorna copia defensiva de los ratones.
+   * Adquiere readLock para permitir lecturas concurrentes.
+   */
   public Set<Position> mice() {
     rwLock.readLock().lock();
     try {
@@ -58,6 +77,10 @@ public final class Board {
     }
   }
 
+  /**
+   * Retorna copia defensiva de los obstáculos.
+   * Adquiere readLock para permitir lecturas concurrentes.
+   */
   public Set<Position> obstacles() {
     rwLock.readLock().lock();
     try {
@@ -67,6 +90,10 @@ public final class Board {
     }
   }
 
+  /**
+   * Retorna copia defensiva de los turbos.
+   * Adquiere readLock para permitir lecturas concurrentes.
+   */
   public Set<Position> turbo() {
     rwLock.readLock().lock();
     try {
@@ -76,6 +103,10 @@ public final class Board {
     }
   }
 
+  /**
+   * Retorna copia defensiva de los teletransportadores.
+   * Adquiere readLock para permitir lecturas concurrentes.
+   */
   public Map<Position, Position> teleports() {
     rwLock.readLock().lock();
     try {
@@ -85,9 +116,17 @@ public final class Board {
     }
   }
 
-  // R-1: step() usa writeLock → exclusivo respecto a lectores y otros escritores
-  // CR-4: randomEmpty() es llamado desde aquí; ya tiene el writeLock, por lo que
-  // es seguro
+  /**
+   * Ejecuta un paso de una serpiente en el tablero.
+   *
+   * Adquiere writeLock, por lo que es exclusivo: ningún otro runner
+   * puede ejecutar step() ni ningún lector puede leer mientras esté
+   * en ejecución. Esto garantiza la consistencia de todas las colecciones
+   * del tablero.
+   *
+   * @param snake la serpiente que avanza
+   * @return MoveResult indicando qué ocurrió en este paso
+   */
   public MoveResult step(Snake snake) {
     Objects.requireNonNull(snake, "snake");
     rwLock.writeLock().lock();
@@ -138,8 +177,11 @@ public final class Board {
     }
   }
 
-  // CR-4: asume que el llamador ya tiene el writeLock (llamado solo desde step()
-  // y constructor)
+  /**
+   * Encuentra una posición aleatoria vacía en el tablero.
+   * NOTA: No adquiere locks propios. Solo debe llamarse desde el
+   * constructor (single-thread) o desde step() (que ya tiene writeLock).
+   */
   private Position randomEmpty() {
     var rnd = ThreadLocalRandom.current();
     Position p;
