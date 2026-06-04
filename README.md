@@ -1,202 +1,205 @@
 # Snake Race — ARSW Lab #2 (Java 21, Virtual Threads)
 
 **Escuela Colombiana de Ingeniería – Arquitecturas de Software**  
-Laboratorio de programación concurrente: condiciones de carrera, sincronización y colecciones seguras.
+Concurrent programming lab: race conditions, synchronization, and safe collections.
 
 ---
 
-## Requisitos
+## Requirements
 
-- **JDK 21** (Temurin recomendado)
+- **JDK 21** (Temurin recommended)
 - **Maven 3.9+**
-- SO: Windows, macOS o Linux
+- OS: Windows, macOS, or Linux
 
 ---
 
-## Cómo ejecutar
+## How to Run
 
 ```bash
 mvn clean verify
 mvn -q -DskipTests exec:java -Dsnakes=4
 ```
 
-- `-Dsnakes=N` → inicia el juego con **N** serpientes (por defecto 2).
-  - Con **N ≥ 2** se habilita la segunda serpiente controlada por WASD.
-  - Serpientes 0 y 1 son de jugadores (solo teclado). Serpientes 2+ son IA (movimiento autónomo).
-- **Controles**:
-  - **Flechas** (←↑↓→): serpiente **0** (Jugador 1).
-  - **WASD** (W↑ A← S↓ D→): serpiente **1** (Jugador 2, solo si N ≥ 2).
-  - **Espacio** o botón **Action**: Pausar / Reanudar. Al pausar se muestra un diálogo con estadísticas (longitud de cada serpiente y la más larga).
+- `-Dsnakes=N` → starts the game with **N** snakes (default 2).
+  - With **N ≥ 2** the second snake (WASD controls) is enabled.
+  - Snakes 0 and 1 are player-controlled (keyboard only). Snakes 2+ are AI (autonomous movement).
+- **Controls**:
+  - **Arrow keys** (←↑↓→): snake **0** (Player 1).
+  - **WASD** (W↑ A← S↓ D→): snake **1** (Player 2, only if N ≥ 2).
+  - **Space** or **Action** button: Pause / Resume. On pause, a dialog shows stats (each snake's length and the longest one).
 
 ---
 
-## Reglas del juego (resumen)
+## Game Rules (Summary)
 
-- **N serpientes** corren de forma autónoma (cada una en su propio hilo).
-- **Ratones**: al comer uno, la serpiente **crece** y aparece un **nuevo obstáculo**.
-- **Obstáculos**: si la cabeza entra en un obstáculo hay **rebote**.
-- **Teletransportadores** (flechas rojas): entrar por uno te **saca por su par**.
-- **Rayos (Turbo)**: al pisarlos, la serpiente obtiene **velocidad aumentada** temporal.
-- Movimiento con **wrap-around** (el tablero “se repite” en los bordes).
+- **N snakes** run autonomously (each in its own thread).
+- **Mice**: when eaten, the snake **grows** and a **new obstacle** appears.
+- **Obstacles**: if the head hits an obstacle, the snake **bounces**.
+- **Teleporters** (red arrows): entering one **exits through its pair**.
+- **Lightning (Turbo)**: stepping on it gives the snake **temporary increased speed**.
+- **Wrap-around** movement (the board "repeats" at the edges).
 
 ---
 
-## Arquitectura (carpetas)
+## Architecture (Folders)
 
 ```
 co.eci.snake
-├─ app/                 # Bootstrap de la aplicación (Main)
-├─ core/                # Dominio: Board, Snake, Direction, Position
-├─ core/engine/         # GameClock (ticks, Pausa/Reanudar)
-├─ concurrency/         # SnakeRunner (lógica por serpiente con virtual threads)
-└─ ui/legacy/           # UI estilo legado (Swing) con grilla y botón Action
+├─ app/                 # Application bootstrap (Main)
+├─ core/                # Domain: Board, Snake, Direction, Position
+├─ core/engine/         # GameClock (ticks, Pause/Resume)
+├─ concurrency/         # SnakeRunner (per-snake logic with virtual threads)
+└─ ui/legacy/           # Legacy-style UI (Swing) with grid and Action button
 ```
 
 ---
 
-# Actividades del laboratorio
+# Lab Activities
 
-## Parte I — (Calentamiento) `wait/notify` en un programa multi-hilo
+## Part I — (Warm-up) `wait/notify` in a multi-threaded program
 
-1. Toma el programa [**PrimeFinder**](https://github.com/ARSW-ECI/wait-notify-excercise).
-2. Modifícalo para que **cada _t_ milisegundos**:
-   - Se **pausen** todos los hilos trabajadores.
-   - Se **muestre** cuántos números primos se han encontrado.
-   - El programa **espere ENTER** para **reanudar**.
-3. La sincronización debe usar **`synchronized`**, **`wait()`**, **`notify()` / `notifyAll()`** sobre el **mismo monitor** (sin _busy-waiting_).
-4. Entrega en el reporte de laboratorio **las observaciones y/o comentarios** explicando tu diseño de sincronización (qué lock, qué condición, cómo evitas _lost wakeups_).
+1. Fork the [**PrimeFinder**](https://github.com/ARSW-ECI/wait-notify-excercise) project.
+2. Modify it so that **every _t_ milliseconds**:
+   - All worker threads are **paused**.
+   - The number of primes found so far is **displayed**.
+   - The program **waits for ENTER** to **resume**.
+3. Synchronization must use **`synchronized`**, **`wait()`**, **`notify()` / `notifyAll()`** on the **same monitor** (no _busy-waiting_).
+4. Include in the lab report **your observations and/or comments** explaining your synchronization design (which lock, which condition, how you avoid _lost wakeups_).
 
-> Objetivo didáctico: practicar suspensión/continuación **sin** espera activa y consolidar el modelo de monitores en Java.
-
----
-
-## Parte II — SnakeRace concurrente (núcleo del laboratorio)
-
-### 1) Análisis de concurrencia
-
-- Explica **cómo** el código usa hilos para dar autonomía a cada serpiente.
-- **Identifica** y documenta en **`el reporte de laboratorio`**:
-  - Posibles **condiciones de carrera**.
-  - **Colecciones** o estructuras **no seguras** en contexto concurrente.
-  - Ocurrencias de **espera activa** (busy-wait) o de sincronización innecesaria.
-
-### 2) Correcciones mínimas y regiones críticas
-
-- **Elimina** esperas activas reemplazándolas por **señales** / **estados** o mecanismos de la librería de concurrencia.
-- Protege **solo** las **regiones críticas estrictamente necesarias** (evita bloqueos amplios).
-- Justifica en **`el reporte de laboratorio`** cada cambio: cuál era el riesgo y cómo lo resuelves.
-
-### 3) Control de ejecución seguro (UI)
-
-- Implementa la **UI** con **Iniciar / Pausar / Reanudar** (ya existe el botón _Action_ y el reloj `GameClock`).
-- Al **Pausar**, muestra de forma **consistente** (sin _tearing_):
-  - La **serpiente viva más larga**.
-  - La **peor serpiente** (la que **primero murió**).
-- Considera que la suspensión **no es instantánea**; coordina para que el estado mostrado no quede “a medias”.
-
-### 4) Robustez bajo carga
-
-- Ejecuta con **N alto** (`-Dsnakes=20` o más) y/o aumenta la velocidad.
-- El juego **no debe romperse**: sin `ConcurrentModificationException`, sin lecturas inconsistentes, sin _deadlocks_.
-- Si habilitas **teleports** y **turbo**, verifica que las reglas no introduzcan carreras.
-
-> Entregables detallados más abajo.
+> Educational goal: practice suspension/resumption **without** active waiting and consolidate the Java monitor model.
 
 ---
 
-## Entregables
+## Part II — Concurrent SnakeRace (lab core)
 
-1. **Código fuente** funcionando en **Java 21**.
-2. Todo de manera clara en **`**el reporte de laboratorio**`** con:
-   - Data races encontradas y su solución.
-   - Colecciones mal usadas y cómo se protegieron (o sustituyeron).
-   - Esperas activas eliminadas y mecanismo utilizado.
-   - Regiones críticas definidas y justificación de su **alcance mínimo**.
-3. UI con **Iniciar / Pausar / Reanudar** y estadísticas solicitadas al pausar.
+### 1) Concurrency analysis
+
+- Explain **how** the code uses threads to give each snake autonomy.
+- **Identify** and document in **`the lab report`**:
+  - Possible **race conditions**.
+  - **Collections** or structures that are **unsafe** in a concurrent context.
+  - Occurrences of **busy-waiting** or unnecessary synchronization.
+
+### 2) Minimal fixes and critical regions
+
+- **Eliminate** busy-waiting by replacing it with **signals** / **states** or concurrency library mechanisms.
+- Protect **only** the **strictly necessary critical regions** (avoid coarse-grained locking).
+- Justify in **`the lab report`** each change: what the risk was and how you solved it.
+
+### 3) Safe execution control (UI)
+
+- Implement the **UI** with **Start / Pause / Resume** (the _Action_ button and `GameClock` already exist).
+- On **Pause**, **consistently** display (without _tearing_):
+  - The **longest alive snake**.
+  - The **worst snake** (the one that **died first**).
+- Consider that suspension **is not instantaneous**; coordinate so that the displayed state is not "half-baked."
+
+### 4) Robustness under load
+
+- Run with **high N** (`-Dsnakes=20` or more) and/or increase speed.
+- The game **must not break**: no `ConcurrentModificationException`, no inconsistent reads, no _deadlocks_.
+- If you enable **teleports** and **turbo**, verify that the rules do not introduce races.
+
+> Detailed deliverables below.
 
 ---
 
-## Criterios de evaluación (10)
+## Deliverables
 
-- (3) **Concurrencia correcta**: sin data races; sincronización bien localizada.
-- (2) **Pausa/Reanudar**: consistencia visual y de estado.
-- (2) **Robustez**: corre **con N alto** y sin excepciones de concurrencia.
-- (1.5) **Calidad**: estructura clara, nombres, comentarios; sin _code smells_ obvios.
-- (1.5) **Documentación**: **`reporte de laboratorio`** claro, reproducible;
-
----
-
-## Tips y configuración útil
-
-- **Número de serpientes**: `-Dsnakes=N` al ejecutar.
-- **Tamaño del tablero**: cambiar el constructor `new Board(width, height)`.
-- **Teleports / Turbo**: editar `Board.java` (métodos de inicialización y reglas en `step(...)`).
-- **Velocidad**: ajustar `GameClock` (tick) o el `sleep` del `SnakeRunner` (incluye modo turbo).
+1. **Source code** running on **Java 21**.
+2. Everything clearly documented in **`the lab report`** with:
+   - Data races found and their solutions.
+   - Misused collections and how they were protected (or replaced).
+   - Busy-waiting eliminated and the mechanism used.
+   - Critical regions defined and justification of their **minimal scope**.
+3. UI with **Start / Pause / Resume** and the requested stats on pause.
 
 ---
 
-## Cómo correr pruebas
+## Evaluation Criteria (10)
+
+- (3) **Correct concurrency**: no data races; well-localized synchronization.
+- (2) **Pause/Resume**: visual and state consistency.
+- (2) **Robustness**: runs **with high N** and without concurrency exceptions.
+- (1.5) **Quality**: clear structure, names, comments; no obvious _code smells_.
+- (1.5) **Documentation**: clear, reproducible **`lab report`**.
+
+---
+
+## Tips and Useful Configuration
+
+- **Number of snakes**: `-Dsnakes=N` when running.
+- **Board size**: change the constructor `new Board(width, height)`.
+- **Teleports / Turbo**: edit `Board.java` (initialization methods and rules in `step(...)`).
+- **Speed**: adjust `GameClock` (tick) or the `sleep` in `SnakeRunner` (includes turbo mode).
+
+---
+
+## How to Run Tests
 
 ```bash
 mvn clean verify
 ```
 
-Incluye compilación y ejecución de pruebas JUnit. Si tienes análisis estático, ejecútalo en `verify` o `site` según tu `pom.xml`.
+Includes compilation and JUnit test execution. If you have static analysis, run it in `verify` or `site` according to your `pom.xml`.
 
 ---
 
-## Créditos
+## Credits
 
-Este laboratorio es una adaptación modernizada del ejercicio **SnakeRace** de ARSW. El enunciado de actividades se conserva para mantener los objetivos pedagógicos del curso.
+This lab is a modernized adaptation of the **SnakeRace** exercise from ARSW. The activity descriptions are preserved to maintain the course's pedagogical objectives.
 
-**Base construida por el Ing. Javier Toquica.**
-
----
-
-# Informe
-
-## Parte I — Cambios realizados en el proyecto Wait-notify
-
-### Resumen
-
-El proyecto original era un buscador de números primos multihilo que **no tenía implementada** la lógica de pausa/reanudación con `wait()`/`notify()`. Se realizaron tres tipos de cambios:
-
-1. Corrección de compatibilidad de versión Java en `pom.xml`
-2. Refactorización de `PrimeFinderThread` para soportar pausas coordinadas
-3. Implementación completa de la lógica de control en `Control`
+**Base built by Ing. Javier Toquica.**
 
 ---
 
-### 1. `pom.xml` — Corrección de versión de Java
+# Report
 
-#### Problema
-Al ejecutar `mvn compile exec:java` con Java 21, el compilador moderno de Maven arrojaba:
+**Author: Juan Carlos Bohórquez Monroy**
+
+## Part I — Changes made to the Wait-notify project
+> Repository: [https://github.com/Juank-1030/Wait-notify-ARSW.git](https://github.com/Juank-1030/Wait-notify-ARSW.git)
+
+### Summary
+
+The original project was a multi-threaded prime number finder that **did not implement** the pause/resume logic with `wait()`/`notify()`. Three types of changes were made:
+
+1. Java version compatibility fix in `pom.xml`
+2. Refactoring of `PrimeFinderThread` to support coordinated pauses
+3. Full implementation of the control logic in `Control`
+
+---
+
+### 1. `pom.xml` — Java version fix
+
+#### Problem
+When running `mvn compile exec:java` with Java 21, the modern Maven compiler threw:
 
 ```
 [ERROR] Source option 7 is no longer supported. Use 8 or later.
 [ERROR] Target option 7 is no longer supported. Use 8 or later.
 ```
 
-El `pom.xml` original declaraba Java 1.7 como versión de compilación, pero las versiones del compilador `maven-compiler-plugin 3.15.0` con JDK 21 ya no soportan generar bytecode para Java 7.
+The original `pom.xml` declared Java 1.7 as the compilation version, but `maven-compiler-plugin 3.15.0` with JDK 21 no longer supports generating bytecode for Java 7.
 
-#### Cambio aplicado
+#### Applied change
 
 ```xml
-<!-- ANTES -->
+<!-- BEFORE -->
 <maven.compiler.source>1.7</maven.compiler.source>
 <maven.compiler.target>1.7</maven.compiler.target>
 
-<!-- DESPUÉS -->
+<!-- AFTER -->
 <maven.compiler.source>21</maven.compiler.source>
 <maven.compiler.target>21</maven.compiler.target>
 
-**Por qué Java 21:** Es la versión LTS más reciente, alineada con el JDK instalado (Java 21). El proyecto Snake ya usa Java 21, y mantener la misma versión evita conflictos en entornos multimódulo. Las características de Java 21 (virtual threads, records, etc.) están disponibles para evolucionar el código si se requiere.
+**Why Java 21:** It is the most recent LTS version, aligned with the installed JDK (Java 21). The Snake project already uses Java 21, and keeping the same version avoids conflicts in multi-module environments. Java 21 features (virtual threads, records, etc.) are available to evolve the code if needed.
 
 ---
 
-### 2. `PrimeFinderThread.java` — Soporte de pausas
+### 2. `PrimeFinderThread.java` — Pause support
 
-#### Estado original
+#### Original state
 
 ```java
 public PrimeFinderThread(int a, int b) { ... }
@@ -205,23 +208,23 @@ public void run() {
     for (int i = a; i < b; i++) {
         if (isPrime(i)) {
             primes.add(i);
-            System.out.println(i);   // imprimía cada primo
+            System.out.println(i);   // printed each prime
         }
     }
 }
 ```
 
-El hilo era autónomo: no tenía ningún mecanismo para pausarse ni referencia a un objeto coordinador.
+The thread was autonomous: it had no mechanism to pause itself nor a reference to a coordinator object.
 
-#### Cambios realizados
+#### Changes made
 
-**a) Nuevo campo `control` y actualización del constructor**
+**a) New `control` field and updated constructor**
 
 ```java
-// Campo agregado
+// Added field
 private final Control control;
 
-// Constructor actualizado: recibe el monitor Control
+// Updated constructor: receives the Control monitor
 public PrimeFinderThread(int a, int b, Control control) {
     super();
     this.primes = new LinkedList<>();
@@ -231,265 +234,265 @@ public PrimeFinderThread(int a, int b, Control control) {
 }
 ```
 
-**Por qué:** Para que cada hilo pueda consultar al `Control` si debe pausarse, necesita una referencia al monitor compartido. Se pasa en el constructor para garantizar que siempre esté disponible desde el inicio.
+**Why:** So that each thread can query `Control` about whether it should pause, it needs a reference to the shared monitor. It is passed in the constructor to guarantee it is always available from the start.
 
-**b) Llamada a `checkPause()` en cada iteración del loop**
+**b) `checkPause()` call in each loop iteration**
 
 ```java
 public void run() {
     for (int i = a; i < b; i++) {
         try {
-            control.checkPause();   // punto de pausa cooperativa
+            control.checkPause();   // cooperative pause point
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return;                 // termina limpiamente si es interrumpido
+            return;                 // cleanly terminates if interrupted
         }
         if (isPrime(i)) {
             primes.add(i);
-            // Se eliminó el System.out.println por número (demasiado ruido)
+            // Removed System.out.println per number (too much noise)
         }
     }
 }
 ```
 
-**Por qué `checkPause()` en cada iteración:** Es un patrón de *pausa cooperativa*. El hilo verifica voluntariamente si debe bloquearse. Esto es preferible a suspender hilos externamente (deprecado desde Java 1.2 por ser inseguro).
+**Why `checkPause()` in each iteration:** It is a *cooperative pause* pattern. The thread voluntarily checks whether it should block. This is preferable to externally suspending threads (deprecated since Java 1.2 for being unsafe).
 
-**Por qué manejar `InterruptedException` con `return`:** Si el hilo es interrumpido mientras espera en `wait()`, debe restaurar la bandera de interrupción y terminar limpiamente.
+**Why handle `InterruptedException` with `return`:** If the thread is interrupted while waiting in `wait()`, it must restore the interrupt flag and terminate cleanly.
 
-**Por qué se eliminó `System.out.println(i)`:** Imprimir 30 millones de números genera ruido innecesario y degrada drásticamente el rendimiento.
+**Why `System.out.println(i)` was removed:** Printing 30 million numbers generates unnecessary noise and drastically degrades performance.
 
 ---
 
-### 3. `Control.java` — Implementación completa del coordinador
+### 3. `Control.java` — Full coordinator implementation
 
-#### Estado original
+#### Original state
 
 ```java
 public class Control extends Thread {
     private static final int NTHREADS = 3;
     private static final int MAXVALUE = 30000000;
-    private static final int TMILISECONDS = 5000;  // existía pero no se usaba
+    private static final int TMILISECONDS = 5000;  // existed but was unused
 
     private PrimeFinderThread pft[];
 
     public void run() {
         for (int i = 0; i < NTHREADS; i++) {
-            pft[i].start();   // solo iniciaba los hilos, sin ningún control
+            pft[i].start();   // only started the threads, with no control
         }
     }
 }
 ```
 
-La constante `TMILISECONDS` estaba definida pero **sin usar**. No había pausa, ni muestra de resultados, ni espera de ENTER.
+The constant `TMILISECONDS` was defined but **unused**. There was no pause, result display, or ENTER wait.
 
-#### Cambios realizados
+#### Changes made
 
-**a) Variables de estado del monitor**
+**a) Monitor state variables**
 
 ```java
 private boolean paused = false;
 private int waitingCount = 0;
 ```
 
-| Variable | Propósito |
+| Variable | Purpose |
 |---|---|
-| `paused` | Bandera que indica a los hilos trabajadores si deben bloquearse |
-| `waitingCount` | Contador de cuántos hilos ya están dentro del `wait()` |
+| `paused` | Flag indicating to worker threads whether they should block |
+| `waitingCount` | Counter of how many threads are already inside `wait()` |
 
-`waitingCount` es clave para que `Control` sepa cuándo **todos** los hilos están efectivamente pausados antes de imprimir el reporte.
+`waitingCount` is key for `Control` to know when **all** threads are effectively paused before printing the report.
 
-**b) Método `checkPause()` — el corazón del mecanismo**
+**b) `checkPause()` method — the heart of the mechanism**
 
 ```java
 public synchronized void checkPause() throws InterruptedException {
     if (paused) {
         waitingCount++;
-        notifyAll();         // avisa a Control que este hilo está entrando a wait
+        notifyAll();         // notifies Control that this thread is entering wait
         while (paused) {
-            wait();          // libera el monitor y duerme
+            wait();          // releases the monitor and sleeps
         }
-        waitingCount--;      // al reanudar, decrementa el contador
+        waitingCount--;      // on resume, decrements the counter
     }
 }
 ```
 
-**Por qué `while (paused)` y no `if (paused)`:** Los *spurious wakeups* (despertares espurios) pueden ocurrir sin razón aparente en la JVM. El `while` garantiza que el hilo re-evalúe la condición antes de continuar.
+**Why `while (paused)` and not `if (paused)`:** *Spurious wakeups* can occur without apparent reason in the JVM. The `while` guarantees the thread re-evaluates the condition before continuing.
 
-**c) Lógica principal en `run()`**
+**c) Main logic in `run()`**
 
 ```java
 while (anyAlive()) {
-    Thread.sleep(TMILISECONDS);    // espera 5 segundos
+    Thread.sleep(TMILISECONDS);    // waits 5 seconds
 
     int alive = aliveCount();
     synchronized (this) {
         paused = true;
         while (waitingCount < alive) {
-            wait();                // espera a que TODOS los hilos estén en wait()
+            wait();                // waits until ALL threads are in wait()
         }
     }
 
-    // Todos los hilos pausados: lectura segura sin sync adicional
+    // All threads paused: safe read without additional sync
     int total = 0;
     for (PrimeFinderThread t : pft) {
         total += t.getPrimes().size();
     }
-    System.out.println("Primos encontrados hasta ahora: " + total);
-    scanner.nextLine();            // bloquea hasta que el usuario presione ENTER
+    System.out.println("Primes found so far: " + total);
+    scanner.nextLine();            // blocks until user presses ENTER
 
     synchronized (this) {
         paused = false;
-        notifyAll();               // despierta a todos los hilos pausados
+        notifyAll();               // wakes up all paused threads
     }
 }
 ```
 
-**Por qué `while (waitingCount < alive)` con `wait()`:** Control necesita estar seguro de que **todos** los hilos vivos están en `wait()` antes de leer los resultados. Sin esta espera se generaría una condición de carrera al leer `primes`. Usar `wait()` evita el *busy-waiting*.
+**Why `while (waitingCount < alive)` with `wait()`:** Control needs to be sure that **all** alive threads are in `wait()` before reading results. Without this wait, a race condition would occur when reading `primes`. Using `wait()` avoids *busy-waiting*.
 
-**Por qué `aliveCount()` antes de pausar:** Si un hilo terminó su rango justo antes de la pausa, no estará en `wait()`. Comparar contra los hilos **vivos** en ese momento evita que `Control` espere infinitamente a un hilo que ya terminó.
+**Why `aliveCount()` before pausing:** If a thread finished its range just before the pause, it will not be in `wait()`. Comparing against the **alive** threads at that moment prevents `Control` from waiting indefinitely for a thread that has already finished.
 
 ---
 
-### Diagrama del flujo de sincronización
+### Synchronization flow diagram
 
 ```
 Control.run()                           PrimeFinderThread.run()
 ──────────────────────────────────      ───────────────────────────────────
-inicia 3 hilos →                        loop: for i = a..b
-                                          checkPause()   ← cada número
+starts 3 threads →                      loop: for i = a..b
+                                          checkPause()   ← each number
 sleep(5000ms)
                                             synchronized(control):
 paused = true                               if paused:
                                               waitingCount++
-                                              notifyAll()  ──→ despierta Control
-wait() hasta waitingCount==N  ←────────────  wait()         (hilo bloqueado)
+                                              notifyAll()  ──→ wakes Control
+wait() until waitingCount==N  ←────────────  wait()         (thread blocked)
 
-todos pausados → lee getPrimes()
-muestra total
-espera ENTER del usuario
+all paused → reads getPrimes()
+shows total
+waits for ENTER from user
 
 paused = false
-notifyAll()  ─────────────────────────→   sale del while(paused)
+notifyAll()  ─────────────────────────→   exits while(paused)
                                           waitingCount--
-                                          continúa el loop
+                                          continues the loop
 ```
 
 ---
 
-### Tabla resumen de cambios
+### Summary table of changes
 
-| Archivo | Cambio | Razón |
+| File | Change | Reason |
 |---|---|---|
-| `pom.xml` | `1.7` → `21` en `maven.compiler.source/target` | Java 7 no es soportado por compiladores modernos |
-| `PrimeFinderThread` | Nuevo campo `Control control` + constructor actualizado | Necesita referencia al monitor para llamar `checkPause()` |
-| `PrimeFinderThread` | `checkPause()` llamado en cada iteración | Pausa cooperativa sin busy-waiting |
-| `PrimeFinderThread` | Eliminado `System.out.println(i)` | Evita inundar la consola con 30M de líneas |
-| `Control` | Campos `paused` y `waitingCount` | Estado compartido del monitor |
-| `Control` | Método `checkPause()` con `wait()`/`notifyAll()` | Punto de bloqueo real para los hilos trabajadores |
-| `Control` | Bucle con `sleep` + pausa + ENTER + reanudación | Implementa el ciclo de pausa cada 5 segundos |
-| `Control` | Métodos `anyAlive()` y `aliveCount()` | Detectar hilos terminados para evitar esperas infinitas |
-| `Control` | `t.join()` + reporte final | Asegura que todos los hilos terminaron antes de mostrar el total |
+| `pom.xml` | `1.7` → `21` in `maven.compiler.source/target` | Java 7 not supported by modern compilers |
+| `PrimeFinderThread` | New `Control control` field + updated constructor | Needs monitor reference to call `checkPause()` |
+| `PrimeFinderThread` | `checkPause()` called in each iteration | Cooperative pause without busy-waiting |
+| `PrimeFinderThread` | Removed `System.out.println(i)` | Avoid flooding the console with 30M lines |
+| `Control` | Fields `paused` and `waitingCount` | Shared monitor state |
+| `Control` | `checkPause()` method with `wait()`/`notifyAll()` | Actual blocking point for worker threads |
+| `Control` | Loop with `sleep` + pause + ENTER + resume | Implements the pause cycle every 5 seconds |
+| `Control` | Methods `anyAlive()` and `aliveCount()` | Detect finished threads to avoid infinite waits |
+| `Control` | `t.join()` + final report | Ensures all threads finished before showing the total |
 
 ---
 
-## Parte II — SnakeRace concurrente
+## Part II — Concurrent SnakeRace
 
-### 1) Problemas de concurrencia identificados en la versión original
-
----
-
-#### CR-1: `Snake.body` (ArrayDeque) — acceso sin sincronización entre hilos
-
-`Snake` usa `ArrayDeque<Position>` como estructura interna. El `SnakeRunner` (virtual thread) escribe el cuerpo mediante `advance()`, mientras que el EDT (Swing) lo lee mediante `snapshot()` en cada repaint. `ArrayDeque` **no es thread-safe**; una lectura concurrente con una escritura puede producir un `ArrayIndexOutOfBoundsException` o un snapshot corrupto.
-
-**Riesgo:** visual inconsistente o excepción en el hilo de Swing.
+### 1) Concurrency problems identified in the original version
 
 ---
 
-#### CR-2: `Snake.direction` — `turn()` no es atómico
+#### CR-1: `Snake.body` (ArrayDeque) — unsynchronized access between threads
 
-`turn()` leía `direction` para validar que no sea un giro de 180°, y luego escribía la nueva dirección. Entre la lectura y la escritura, otro hilo (el runner o el teclado) podía modificar `direction`, causando que la serpiente se doble sobre sí misma.
+`Snake` uses `ArrayDeque<Position>` as its internal structure. The `SnakeRunner` (virtual thread) writes to the body via `advance()`, while the EDT (Swing) reads it via `snapshot()` on each repaint. `ArrayDeque` is **not thread-safe**; a concurrent read with a write can produce an `ArrayIndexOutOfBoundsException` or a corrupted snapshot.
 
-**Riesgo:** serpiente se mueve en dirección opuesta (glitch de movimiento).
-
----
-
-#### CR-3: `Board.randomEmpty()` — lock implícito del llamador
-
-`randomEmpty()` accede a `mice`, `obstacles`, `turbo` y `teleports` sin adquirir ningún lock propio. Solo es seguro porque es llamado exclusivamente desde `step()`, que sí sostiene el lock. Si en el futuro se invoca desde otro contexto, las colecciones quedarían expuestas.
-
-**Riesgo:** latente, podría causar carreras si se reusa el método fuera de `step()`.
+**Risk:** inconsistent visual or exception on the Swing thread.
 
 ---
 
-#### CR-4: Colecciones del `Board` — `HashSet`/`HashMap` no thread-safe
+#### CR-2: `Snake.direction` — `turn()` is not atomic
 
-`Board` almacena el estado del juego en `HashSet` y `HashMap`. Sin sincronización externa, el EDT lee estas colecciones en `paintComponent()` mientras los runners las modifican en `step()`.
+`turn()` read `direction` to validate it was not a 180° turn, then wrote the new direction. Between the read and the write, another thread (the runner or keyboard) could modify `direction`, causing the snake to fold onto itself.
 
-**Riesgo:** `ConcurrentModificationException` o lecturas inconsistentes en la UI.
+**Risk:** snake moves in the opposite direction (movement glitch).
 
 ---
 
-#### BW-1: `GameClock` — busy-wait durante pausa
+#### CR-3: `Board.randomEmpty()` — implicit caller lock
+
+`randomEmpty()` accesses `mice`, `obstacles`, `turbo`, and `teleports` without acquiring any lock of its own. It is only safe because it is called exclusively from `step()`, which does hold the lock. If called from another context in the future, the collections would be exposed.
+
+**Risk:** latent, could cause races if the method is reused outside `step()`.
+
+---
+
+#### CR-4: `Board` collections — `HashSet`/`HashMap` not thread-safe
+
+`Board` stores the game state in `HashSet` and `HashMap`. Without external synchronization, the EDT reads these collections in `paintComponent()` while the runners modify them in `step()`.
+
+**Risk:** `ConcurrentModificationException` or inconsistent reads in the UI.
+
+---
+
+#### BW-1: `GameClock` — busy-wait during pause
 
 ```java
 scheduler.scheduleAtFixedRate(() -> {
-    if (state.get() == GameState.RUNNING) tick.run();  // polling de estado
+    if (state.get() == GameState.RUNNING) tick.run();  // state polling
 }, 0, periodMillis, TimeUnit.MILLISECONDS);
 ```
 
-El scheduler sigue despertando cada 60ms incluso con el juego pausado, solo para descubrir que no debe hacer nada. Es **busy-wait disfrazado**: consumo innecesario de CPU.
+The scheduler keeps waking up every 60ms even with the game paused, only to discover it should do nothing. This is **disguised busy-wait**: unnecessary CPU consumption.
 
-**Riesgo:** consumo de CPU en pausa, batería en laptops.
-
----
-
-#### DR-1: `SnakeRunner` — giros aleatorios en serpientes de jugador
-
-`maybeTurn()` aplicaba a **todas** las serpientes, incluyendo las controladas por teclado (flechas, WASD). Cada ~80ms había 10% de probabilidad de que la serpiente cambiara de dirección aleatoriamente, pisando la entrada del jugador.
-
-**Riesgo:** jugador pierde el control de su serpiente, experiencia de juego frustrante.
+**Risk:** CPU consumption during pause, battery drain on laptops.
 
 ---
 
-#### DL-1: `PauseControl` — deadlock al pausar con serpientes muertas
+#### DR-1: `SnakeRunner` — random turns on player snakes
 
-Cuando una serpiente moría al chocar con un obstáculo, su runner terminaba el loop. Si el usuario presionaba *Pause* después, `pauseAndWaitForAll()` calculaba una vez cuántos runners vivos esperar, pero ese número incluía al runner ya terminado, por lo que `waitingCount` nunca lo alcanzaba y el hilo de la UI se bloqueaba para siempre.
+`maybeTurn()` applied to **all** snakes, including those controlled by keyboard (arrows, WASD). Every ~80ms there was a 10% chance the snake would randomly change direction, overriding the player's input.
 
-**Riesgo:** UI congelada, usuario obligado a cerrar la ventana.
-
----
-
-#### DL-2: `PauseControl` — deadlock al reanudar durante la recolección
-
-Si el usuario presionaba *Resume* mientras `pauseAndWaitForAll()` aún recolectaba runners (antes de que todos llegaran a `wait()`), el while no verificaba `paused`, por lo que aunque `paused = false` y ya no llegarían más señales, el hilo de la UI seguía esperando.
-
-**Riesgo:** UI congelada al hacer clic muy rápido en pausa/reanudar.
+**Risk:** player loses control of their snake, frustrating game experience.
 
 ---
 
-#### Tabla resumen de hallazgos
+#### DL-1: `PauseControl` — deadlock when pausing with dead snakes
 
-| ID | Archivo | Tipo | Descripción | Severidad |
+When a snake died hitting an obstacle, its runner ended the loop. If the user pressed *Pause* afterwards, `pauseAndWaitForAll()` calculated once how many alive runners to expect, but that number included the already finished runner, so `waitingCount` never reached it and the UI thread blocked forever.
+
+**Risk:** frozen UI, user forced to close the window.
+
+---
+
+#### DL-2: `PauseControl` — deadlock when resuming during collection
+
+If the user pressed *Resume* while `pauseAndWaitForAll()` was still collecting runners (before all reached `wait()`), the while loop did not check `paused`, so even though `paused = false` and no more signals would arrive, the UI thread kept waiting.
+
+**Risk:** frozen UI when clicking pause/resume very quickly.
+
+---
+
+#### Summary table of findings
+
+| ID | File | Type | Description | Severity |
 |---|---|---|---|---|
-| CR-1 | `Snake.java` | Data race | `ArrayDeque.snapshot()` vs `advance()` sin sync | Alta |
-| CR-2 | `Snake.java` | Data race | `turn()` lee y escribe `direction` no atómicamente | Alta |
-| CR-3 | `Board.java` | Riesgo | `randomEmpty()` asume lock del llamador | Baja |
-| CR-4 | `Board.java` | Colección no segura | `HashSet`/`HashMap` sin sync | Media |
-| BW-1 | `GameClock.java` | Busy-wait | Scheduler sondea estado durante pausa | Media |
-| DR-1 | `SnakeRunner.java` | Diseño | `maybeTurn()` interfiere con serpientes de jugador | Alta |
-| DL-1 | `PauseControl.java` | Deadlock | `alive` no se recalcula tras muerte de runner | Alta |
-| DL-2 | `PauseControl.java` | Deadlock | No verifica `paused` en while de recolección | Alta |
+| CR-1 | `Snake.java` | Data race | `ArrayDeque.snapshot()` vs `advance()` without sync | High |
+| CR-2 | `Snake.java` | Data race | `turn()` reads/writes `direction` non-atomically | High |
+| CR-3 | `Board.java` | Risk | `randomEmpty()` assumes caller's lock | Low |
+| CR-4 | `Board.java` | Unsafe collection | `HashSet`/`HashMap` without sync | Medium |
+| BW-1 | `GameClock.java` | Busy-wait | Scheduler polls state during pause | Medium |
+| DR-1 | `SnakeRunner.java` | Design | `maybeTurn()` interferes with player snakes | High |
+| DL-1 | `PauseControl.java` | Deadlock | `alive` not recalculated after runner death | High |
+| DL-2 | `PauseControl.java` | Deadlock | Does not check `paused` in collection while | High |
 
 ---
 
-### 2) Correcciones aplicadas — solución por cada problema
+### 2) Applied fixes — solution for each problem
 
 ---
 
-#### CR-1: `synchronized` en `Snake.body`
+#### CR-1: `synchronized` on `Snake.body`
 
-Se marcaron como `synchronized` todos los métodos que acceden a `body`: `advance()`, `snapshot()`, `head()`. Esto garantiza que el runner (escritura) y el EDT (lectura) nunca accedan al `ArrayDeque` concurrentemente.
+All methods that access `body` were marked `synchronized`: `advance()`, `snapshot()`, `head()`. This guarantees that the runner (writer) and the EDT (reader) never access the `ArrayDeque` concurrently.
 
 ```java
 public synchronized Deque<Position> snapshot() { return new ArrayDeque<>(body); }
@@ -497,29 +500,29 @@ public synchronized void advance(Position newHead, boolean grow) { ... }
 public synchronized Position head() { return body.peekFirst(); }
 ```
 
-**Región crítica mínima:** solo los accesos a `body` están sincronizados. El cálculo de `maxLength` dentro de `advance()` también queda protegido por estar en el mismo método sincronizado.
+**Minimum critical region:** only accesses to `body` are synchronized. The `maxLength` calculation inside `advance()` is also protected by being in the same synchronized method.
 
 ---
 
-#### CR-2: `synchronized` en `Snake.turn()` y `direction()`
+#### CR-2: `synchronized` on `Snake.turn()` and `direction()`
 
-Se eliminó `volatile` de `direction` y se marcaron `turn()` y `direction()` como `synchronized`. Ahora la validación y la escritura de la nueva dirección ocurren en una sola región crítica atómica, bajo el mismo monitor de `Snake`.
+`volatile` was removed from `direction` and both `turn()` and `direction()` were marked `synchronized`. Now the validation and write of the new direction occur in a single atomic critical region, under the same `Snake` monitor.
 
 ```java
 public synchronized void turn(Direction dir) { ... }
 public synchronized Direction direction() { return direction; }
 ```
 
-Esto también garantiza que `advance()` (que lee `direction` indirectamente a través de `Board.step()`) vea un estado consistente de dirección junto con el cuerpo.
+This also guarantees that `advance()` (which reads `direction` indirectly through `Board.step()`) sees a consistent direction state together with the body.
 
 ---
 
-#### CR-3 y CR-4: `ReentrantReadWriteLock` en `Board`
+#### CR-3 and CR-4: `ReentrantReadWriteLock` on `Board`
 
-Se reemplazó `synchronized` por un `ReentrantReadWriteLock`:
+`synchronized` was replaced with a `ReentrantReadWriteLock`:
 
-- **Lectores** (`mice()`, `obstacles()`, `turbo()`, `teleports()`): adquieren el `readLock`, permitiendo que múltiples hilos (EDT + runners en pausa) lean simultáneamente.
-- **Escritor** (`step()`): adquiere el `writeLock`, exclusivo contra cualquier otro lector o escritor.
+- **Readers** (`mice()`, `obstacles()`, `turbo()`, `teleports()`): acquire the `readLock`, allowing multiple threads (EDT + paused runners) to read simultaneously.
+- **Writer** (`step()`): acquires the `writeLock`, exclusive against any other reader or writer.
 
 ```java
 public Set<Position> mice() {
@@ -530,23 +533,23 @@ public Set<Position> mice() {
 
 public MoveResult step(Snake snake) {
     rwLock.writeLock().lock();
-    try { /* modificar colecciones */ }
+    try { /* modify collections */ }
     finally { rwLock.writeLock().unlock(); }
 }
 ```
 
-`randomEmpty()` sigue siendo privado y sin lock propio; se llama exclusivamente desde `step()` (writeLock) y el constructor (single-thread), por lo que su acceso a las colecciones está siempre protegido.
+`randomEmpty()` remains private and without its own lock; it is called exclusively from `step()` (writeLock) and the constructor (single-thread), so its access to collections is always protected.
 
-**Beneficio:** con N=20 runners, la contención se reduce drásticamente porque el EDT puede leer el tablero mientras ningún runner está en la fase de escritura.
+**Benefit:** with N=20 runners, contention is drastically reduced because the EDT can read the board while no runner is in the writing phase.
 
 ---
 
-#### BW-1: Cancelación del scheduler en `GameClock`
+#### BW-1: Scheduler cancellation in `GameClock`
 
-En lugar de mantener el scheduler sondeando `state` cada 60ms, se guarda la referencia al `ScheduledFuture<?>` devuelto por `scheduleAtFixedRate()`:
+Instead of keeping the scheduler polling `state` every 60ms, the reference to the `ScheduledFuture<?>` returned by `scheduleAtFixedRate()` is stored:
 
-- `pause()` llama a `tickTask.cancel(false)` — el scheduler deja de despertar por completo durante la pausa.
-- `resume()` reprograma el tick desde cero.
+- `pause()` calls `tickTask.cancel(false)` — the scheduler stops waking entirely during pause.
+- `resume()` reschedules the tick from scratch.
 
 ```java
 public void pause() {
@@ -562,13 +565,13 @@ public void resume() {
 }
 ```
 
-**Beneficio:** cero consumo de CPU durante la pausa. El `cancel(false)` espera a que el tick en curso termine antes de cancelar, evitando dejar la UI en estado inconsistente.
+**Benefit:** zero CPU consumption during pause. `cancel(false)` waits for the current tick to finish before canceling, avoiding leaving the UI in an inconsistent state.
 
 ---
 
-#### DR-1: `autoPilot` en `SnakeRunner` — giros solo para IA
+#### DR-1: `autoPilot` in `SnakeRunner` — turns only for AI
 
-Se agregó el parámetro `boolean autoPilot` al constructor de `SnakeRunner`. Solo las serpientes con `autoPilot = true` ejecutan `maybeTurn()` en cada iteración. En `SnakeApp`, las serpientes 0 y 1 (controladas por jugador) se crean con `autoPilot = false`; las serpientes 2+ (IA) con `autoPilot = true`.
+The `boolean autoPilot` parameter was added to the `SnakeRunner` constructor. Only snakes with `autoPilot = true` execute `maybeTurn()` in each iteration. In `SnakeApp`, snakes 0 and 1 (player-controlled) are created with `autoPilot = false`; snakes 2+ (AI) with `autoPilot = true`.
 
 ```java
 // SnakeApp.java
@@ -578,26 +581,16 @@ for (int i = 0; i < snakes.size(); i++) {
 }
 
 // SnakeRunner.java
-if (autoPilot) maybeTurn();  // ← solo IA gira aleatoriamente
+if (autoPilot) maybeTurn();  // ← only AI turns randomly
 ```
 
-**Beneficio:** el jugador mantiene control total sobre su serpiente. Las serpientes IA siguen siendo autónomas.
+**Benefit:** the player maintains full control over their snake. AI snakes remain autonomous.
 
 ---
 
-#### DL-1 y DL-2: Corrección de deadlocks en `PauseControl`
+#### DL-1 and DL-2: Deadlock fixes in `PauseControl`
 
-**DL-1 — alive recalulado en cada iteración:**
-
-```java
-while (paused && waitingCount < snakes.size()) {
-    wait();
-}
-```
-
-`waitingCount` se compara contra `snakes.size()` (el total de serpientes, no solo las "vivas", porque en esta versión ninguna serpiente muere). Si un runner termina entre el cálculo de la condición y la señal, el while sigue esperando hasta que los runners restantes cubran el faltante, o hasta que `paused` sea `false`.
-
-**DL-2 — verificación de `paused` en el while:**
+**DL-1 — alive recalculated each iteration:**
 
 ```java
 while (paused && waitingCount < snakes.size()) {
@@ -605,9 +598,19 @@ while (paused && waitingCount < snakes.size()) {
 }
 ```
 
-Si el usuario presiona *Resume* durante la recolección, `paused` se vuelve `false`, la condición sale del while, y el hilo de la UI continúa (sin intentar mostrar estadísticas).
+`waitingCount` is compared against `snakes.size()` (the total number of snakes, not just "alive" ones, because no snake dies in this version). If a runner finishes between the condition calculation and the signal, the while keeps waiting until the remaining runners cover the shortfall, or until `paused` becomes `false`.
 
-**Además — fuga de `waitingCount`:**
+**DL-2 — `paused` check in the while:**
+
+```java
+while (paused && waitingCount < snakes.size()) {
+    wait();
+}
+```
+
+If the user presses *Resume* during collection, `paused` becomes `false`, the condition exits the while, and the UI thread continues (without attempting to show stats).
+
+**Additionally — `waitingCount` leak:**
 
 ```java
 public synchronized void checkPause() throws InterruptedException {
@@ -619,147 +622,147 @@ public synchronized void checkPause() throws InterruptedException {
                 wait();
             }
         } finally {
-            waitingCount--;  // ← siempre decrementa, incluso con InterruptedException
+            waitingCount--;  // ← always decrements, even with InterruptedException
         }
     }
 }
 ```
 
-El `try-finally` garantiza que `waitingCount` se decremente incluso si el runner recibe `InterruptedException` mientras está en `wait()`.
+The `try-finally` guarantees that `waitingCount` is decremented even if the runner receives `InterruptedException` while in `wait()`.
 
 ---
 
-### 3) Arquitectura de concurrencia — estado actual
+### 3) Concurrency architecture — current state
 
-#### Hilos involucrados
+#### Threads involved
 
-El sistema utiliza cuatro tipos de hilos:
+The system uses four types of threads:
 
-1. **EDT (Event Dispatch Thread)** — Hilo principal de Swing. Crea todos los objetos (`Board`, `SnakeRunner`, `GameClock`, `PauseControl`), procesa los eventos de teclado (flechas para serpiente 0, WASD para serpiente 1) y ejecuta el repintado de la ventana (`paintComponent()`) cada ~60ms mediante el `GameClock`.
+1. **EDT (Event Dispatch Thread)** — Swing's main thread. Creates all objects (`Board`, `SnakeRunner`, `GameClock`, `PauseControl`), processes keyboard events (arrows for snake 0, WASD for snake 1) and executes window repainting (`paintComponent()`) every ~60ms via the `GameClock`.
 
-2. **N VirtualThreads (SnakeRunner)** — Cada serpiente tiene su propio virtual thread creado con `Executors.newVirtualThreadPerTaskExecutor()`. Cada runner ejecuta un ciclo infinito: `checkPause()` → `maybeTurn()` (solo si `autoPilot=true`) → `board.step()` → `Thread.sleep()`. La serpiente 0 (`autoPilot=false`) solo responde a teclado; la 1 igual; las 2+ (`autoPilot=true`) giran aleatoriamente.
+2. **N VirtualThreads (SnakeRunner)** — Each snake has its own virtual thread created with `Executors.newVirtualThreadPerTaskExecutor()`. Each runner executes an infinite loop: `checkPause()` → `maybeTurn()` (only if `autoPilot=true`) → `board.step()` → `Thread.sleep()`. Snake 0 (`autoPilot=false`) only responds to keyboard; snake 1 likewise; snakes 2+ (`autoPilot=true`) turn randomly.
 
-3. **1 VirtualThread (PauseAndWait)** — Se crea temporalmente al pausar el juego. Ejecuta `pauseControl.pauseAndWaitForAll()`, que se bloquea en `wait()` hasta que todos los `SnakeRunner` están detenidos. Al reanudar, este hilo termina.
+3. **1 VirtualThread (PauseAndWait)** — Created temporarily when pausing the game. Executes `pauseControl.pauseAndWaitForAll()`, which blocks on `wait()` until all `SnakeRunner` instances are stopped. On resume, this thread ends.
 
-4. **SchedulerThread (GameClock)** — Hilo único del `ScheduledExecutorService`. En estado RUNNING ejecuta `tick` cada 60ms (solo `SwingUtilities.invokeLater(gamePanel::repaint)`). En estado PAUSED el `ScheduledFuture` está cancelado, por lo que este hilo no despierta.
+4. **SchedulerThread (GameClock)** — Single thread from the `ScheduledExecutorService`. In RUNNING state it executes `tick` every 60ms (only `SwingUtilities.invokeLater(gamePanel::repaint)`). In PAUSED state the `ScheduledFuture` is canceled, so this thread does not wake up.
 
-#### Flujo de pausa/reanudación
+#### Pause/Resume flow
 
-**Pausar:**
-1. Usuario hace clic en *Action* o presiona *Espacio*.
-2. `SnakeApp.togglePause()` cambia el texto del botón a *Resume*.
-3. `clock.pause()` cancela el `ScheduledFuture` del tick de repintado.
-4. Se lanza un **virtual thread** que llama a `PauseControl.pauseAndWaitForAll()`:
-   a. Establece `paused = true`.
-   b. Entra en `while (paused && waitingCount < snakes.size())`.
-   c. Hace `wait()` — libera el monitor de `PauseControl`.
-5. Cada `SnakeRunner`, al comenzar su siguiente iteración, llama a `checkPause()`:
-   a. Ve `paused = true`, incrementa `waitingCount`.
-   b. Llama `notifyAll()` — despierta el hilo de UI para que re-evalúe la condición.
-   c. Entra en `while (paused) wait()` — el runner se bloquea de verdad.
-6. Cuando `waitingCount == snakes.size()`, el hilo de UI sale del while y termina.
-   - En este punto: **todos los runners están bloqueados → estado estable**.
+**Pausing:**
+1. User clicks *Action* or presses *Space*.
+2. `SnakeApp.togglePause()` changes the button text to *Resume*.
+3. `clock.pause()` cancels the `ScheduledFuture` of the repaint tick.
+4. A **virtual thread** is launched that calls `PauseControl.pauseAndWaitForAll()`:
+   a. Sets `paused = true`.
+   b. Enters `while (paused && waitingCount < snakes.size())`.
+   c. Calls `wait()` — releases the `PauseControl` monitor.
+5. Each `SnakeRunner`, at the start of its next iteration, calls `checkPause()`:
+   a. Sees `paused = true`, increments `waitingCount`.
+   b. Calls `notifyAll()` — wakes the UI thread to re-evaluate the condition.
+   c. Enters `while (paused) wait()` — the runner truly blocks.
+6. When `waitingCount == snakes.size()`, the UI thread exits the while and terminates.
+   - At this point: **all runners are blocked → stable state**.
 
-**Reanudar:**
-1. Usuario hace clic en *Resume* o presiona *Espacio*.
-2. `PauseControl.resume()` establece `paused = false` y llama `notifyAll()`.
-3. Todos los runners despiertan, ven `paused = false`, salen de `while (paused)` y continúan su loop.
-4. `clock.resume()` reprograma el tick de repintado.
-5. El botón vuelve a mostrar *Action*.
+**Resuming:**
+1. User clicks *Resume* or presses *Space*.
+2. `PauseControl.resume()` sets `paused = false` and calls `notifyAll()`.
+3. All runners wake up, see `paused = false`, exit `while (paused)` and continue their loop.
+4. `clock.resume()` reschedules the repaint tick.
+5. The button returns to showing *Action*.
 
-#### Mecanismo de sincronización
+#### Synchronization mechanism
 
-| Componente | Mecanismo | Propósito |
+| Component | Mechanism | Purpose |
 |---|---|---|
-| `Snake` | `synchronized` (monitor intrínseco) | Proteger `body` (ArrayDeque) entre runner (escritura) y EDT (lectura). Un solo lock cubre `direction` + `body` para consistencia. |
-| `Board` | `ReentrantReadWriteLock` | Múltiples lectores simultáneos (EDT + stats) vs escritor exclusivo (runner en step). |
-| `PauseControl` | `synchronized` + `wait/notifyAll` | Coordinación de pausa cooperativa entre N runners y la UI. Sin busy-wait. |
-| `GameClock` | `AtomicReference<GameState>` + `ScheduledFuture.cancel()` | Estado atómico del reloj. Cancelación física del scheduler durante pausa. |
-| `SnakeApp.snakes` | `CopyOnWriteArrayList` | Iteración segura desde EDT sin locks. Escritura solo en construcción. |
-| `SnakeRunner.turboTicks` | Variable de instancia (un solo hilo) | Solo el propio runner lee/escribe; no requiere sincronización. |
+| `Snake` | `synchronized` (intrinsic monitor) | Protect `body` (ArrayDeque) between runner (writer) and EDT (reader). A single lock covers `direction` + `body` for consistency. |
+| `Board` | `ReentrantReadWriteLock` | Multiple concurrent readers (EDT + stats) vs exclusive writer (runner in step). |
+| `PauseControl` | `synchronized` + `wait/notifyAll` | Cooperative pause coordination between N runners and the UI. No busy-wait. |
+| `GameClock` | `AtomicReference<GameState>` + `ScheduledFuture.cancel()` | Atomic clock state. Physical cancellation of the scheduler during pause. |
+| `SnakeApp.snakes` | `CopyOnWriteArrayList` | Safe iteration from EDT without locks. Write-only during construction. |
+| `SnakeRunner.turboTicks` | Instance variable (single thread) | Only the runner itself reads/writes; no synchronization required. |
 
-#### Regiones críticas
+#### Critical regions
 
-| Región crítica | Lock | Hilos involucrados |
+| Critical Region | Lock | Threads involved |
 |---|---|---|
-| `Snake.advance()` → modifica `body` | `Snake.this` | 1 runner |
-| `Snake.snapshot()` → lee `body` | `Snake.this` | EDT |
-| `Snake.turn()` → lee/escribe `direction` | `Snake.this` | EDT o 1 runner |
-| `Board.step()` → modifica colecciones | `Board.rwLock.writeLock` | 1 runner |
-| `Board.mice/obstacles/turbo/teleports()` → lee colecciones | `Board.rwLock.readLock` | EDT (repaint) |
-| `PauseControl.checkPause()` → modifica `waitingCount` | `PauseControl.this` | N runners |
-| `PauseControl.pauseAndWaitForAll()` → lee `waitingCount` | `PauseControl.this` | 1 virtual thread (UI) |
+| `Snake.advance()` → modifies `body` | `Snake.this` | 1 runner |
+| `Snake.snapshot()` → reads `body` | `Snake.this` | EDT |
+| `Snake.turn()` → reads/writes `direction` | `Snake.this` | EDT or 1 runner |
+| `Board.step()` → modifies collections | `Board.rwLock.writeLock` | 1 runner |
+| `Board.mice/obstacles/turbo/teleports()` → reads collections | `Board.rwLock.readLock` | EDT (repaint) |
+| `PauseControl.checkPause()` → modifies `waitingCount` | `PauseControl.this` | N runners |
+| `PauseControl.pauseAndWaitForAll()` → reads `waitingCount` | `PauseControl.this` | 1 virtual thread (UI) |
 
-#### Orden de locks (importante para evitar deadlocks)
+#### Lock ordering (important to avoid deadlocks)
 
 ```
-SnakeRunner → Board.writeLock → Snake.this  (runner avanzando)
+SnakeRunner → Board.writeLock → Snake.this  (runner advancing)
 EDT         → Snake.this                    (turn, snapshot)
 EDT         → Board.readLock                (paintComponent)
 ```
 
-No hay dependencia circular: el EDT nunca adquiere `Board.writeLock`, y el runner nunca adquiere otro lock después de soltar `Board.writeLock`. Por lo tanto **no hay posibilidad de deadlock por orden de locks**.
+There is no circular dependency: the EDT never acquires `Board.writeLock`, and the runner never acquires another lock after releasing `Board.writeLock`. Therefore **there is no possibility of deadlock from lock ordering**.
 
 ---
 
-### 4) Cambios con respecto a la versión de referencia (`main/`)
+### 4) Changes compared to the reference version (`main/`)
 
-El proyecto partió de una implementación de referencia en `main/java/` que tenía la lógica de juego correcta pero sin ninguna corrección de concurrencia. Sobre esa base se aplicaron los siguientes cambios:
+The project started from a reference implementation in `main/java/` that had correct game logic but without any concurrency fixes. On that basis, the following changes were applied:
 
-| Archivo | main (referencia) | src (versión final) |
+| File | main (reference) | src (final version) |
 |---|---|---|
-| `Snake.java` | Sin sincronización, `volatile direction` | Todos los métodos `synchronized`, sin `volatile` |
-| `Board.java` | `synchronized` en métodos | `ReentrantReadWriteLock` (lectura/escritura) |
-| `GameClock.java` | Scheduler sondea estado cada 60ms (busy-wait) | `ScheduledFuture.cancel()` en pausa, reprograma en resume |
-| `SnakeRunner.java` | Sin PauseControl, `maybeTurn()` en todas | `autoPilot` para separar IA/jugador, `checkPause()` cooperativa |
-| `PauseControl.java` | No existía | Nueva clase: monitor con `wait/notifyAll`, corrección de deadlocks |
-| `SnakeApp.java` | `ArrayList`, `EXIT_ON_CLOSE`, togglePause simple | `CopyOnWriteArrayList`, shutdown coordinado, PauseControl integrado |
-| `pom.xml` | Sin configuración Maven | `exec-maven-plugin` con `systemProperties` para `-Dsnakes` |
+| `Snake.java` | No synchronization, `volatile direction` | All methods `synchronized`, no `volatile` |
+| `Board.java` | `synchronized` on methods | `ReentrantReadWriteLock` (read/write) |
+| `GameClock.java` | Scheduler polls state every 60ms (busy-wait) | `ScheduledFuture.cancel()` on pause, reschedule on resume |
+| `SnakeRunner.java` | No PauseControl, `maybeTurn()` on all | `autoPilot` to separate AI/player, cooperative `checkPause()` |
+| `PauseControl.java` | Did not exist | New class: monitor with `wait/notifyAll`, deadlock fixes |
+| `SnakeApp.java` | `ArrayList`, `EXIT_ON_CLOSE`, simple togglePause | `CopyOnWriteArrayList`, coordinated shutdown, PauseControl integrated |
+| `pom.xml` | No Maven configuration | `exec-maven-plugin` with `systemProperties` for `-Dsnakes` |
 
-#### Funcionalidad preservada de `main` (reglas del juego)
+#### Functionality preserved from `main` (game rules)
 
-- **Rebote en obstáculos**: al chocar, la serpiente gira aleatoriamente (`randomTurn()`) y sigue viva.
-- **Sin muerte**: no hay concepto de serpiente muerta; no se usa `markDead()`/`isDead()`/`deathTime()`.
-- **Autonomía de IA**: las serpientes 2+ giran aleatoriamente con probabilidad configurable.
-- **Turbo, teletransportadores, ratones**: idéntico comportamiento.
+- **Bounce on obstacles**: when hitting, the snake turns randomly (`randomTurn()`) and stays alive.
+- **No death**: there is no concept of a dead snake; `markDead()`/`isDead()`/`deathTime()` are not used.
+- **AI autonomy**: snakes 2+ turn randomly with configurable probability.
+- **Turbo, teleporters, mice**: identical behavior.
 
-#### Funcionalidad agregada (no presente en `main`)
+#### Added functionality (not present in `main`)
 
-- **Estadísticas al pausar**: al presionar *Action* o *Espacio*, después de que todos los runners se bloquean, se muestra un `JOptionPane` con la serpiente más larga y las longitudes individuales de cada serpiente. La verificación `pauseControl.isPaused()` evita mostrar el diálogo si el usuario reanudó antes de que la recolección terminara.
-- **CopyOnWriteArrayList**: reemplaza a `ArrayList` para iteración segura desde el EDT sin locks.
-- **Shutdown coordinado**: al cerrar la ventana se interrumpen todos los virtual threads y se apaga el scheduler del reloj.
+- **Stats on pause**: when pressing *Action* or *Space*, after all runners are blocked, a `JOptionPane` shows the longest snake and individual lengths of each snake. The `pauseControl.isPaused()` check prevents showing the dialog if the user resumed before collection finished.
+- **CopyOnWriteArrayList**: replaces `ArrayList` for safe iteration from the EDT without locks.
+- **Coordinated shutdown**: on window close, all virtual threads are interrupted and the clock scheduler is shut down.
 
-#### Resumen de líneas por archivo
+#### Lines per file summary
 
-| Archivo | Líneas | Cambios principales |
+| File | Lines | Main changes |
 |---|---|---|
-| `pom.xml` | 58 | Propiedad `<snakes>`, `exec-maven-plugin` con systemProperties |
-| `Main.java` | 10 | Sin cambios |
-| `Snake.java` | 49 | `synchronized` en todos los métodos públicos |
-| `Board.java` | 155 | `ReadWriteLock`, copias defensivas |
-| `Direction.java` | 4 | Sin cambios |
-| `Position.java` | 9 | Sin cambios |
-| `GameState.java` | 2 | Sin cambios |
-| `GameClock.java` | 59 | `ScheduledFuture` para cancel/reprogram |
-| `PauseControl.java` | 70 | Nueva clase: wait/notify, deadlocks corregidos |
-| `SnakeRunner.java` | 57 | `autoPilot`, `checkPause()`, rebote en obstáculo |
-| `SnakeApp.java` | 263 | `CopyOnWriteArrayList`, shutdown, PauseControl, autoPilot por índice |
+| `pom.xml` | 58 | `<snakes>` property, `exec-maven-plugin` with systemProperties |
+| `Main.java` | 10 | No changes |
+| `Snake.java` | 49 | `synchronized` on all public methods |
+| `Board.java` | 155 | `ReadWriteLock`, defensive copies |
+| `Direction.java` | 4 | No changes |
+| `Position.java` | 9 | No changes |
+| `GameState.java` | 2 | No changes |
+| `GameClock.java` | 59 | `ScheduledFuture` for cancel/reschedule |
+| `PauseControl.java` | 70 | New class: wait/notify, deadlocks fixed |
+| `SnakeRunner.java` | 57 | `autoPilot`, `checkPause()`, bounce on obstacle |
+| `SnakeApp.java` | 263 | `CopyOnWriteArrayList`, shutdown, PauseControl, autoPilot by index |
 
 ---
 
-### 5) Cómo verificar la correcta concurrencia
+### 5) How to verify correct concurrency
 
-1. **Ejecutar con N alto**:
+1. **Run with high N**:
    ```bash
    mvn -q -DskipTests exec:java -Dsnakes=20
    ```
-   El juego debe correr sin `ConcurrentModificationException`, sin lecturas inconsistentes, sin deadlocks.
+   The game must run without `ConcurrentModificationException`, without inconsistent reads, without deadlocks.
 
-2. **Pausar y reanudar repetidamente**:
-   Presionar *Espacio* o *Action/Resume* rápidamente varias veces. No debe congelarse la UI ni perderse el control de las serpientes.
+2. **Pause and resume repeatedly**:
+   Press *Space* or *Action/Resume* quickly multiple times. The UI must not freeze nor lose control of the snakes.
 
-3. **Cerrar la ventana**:
-   Al cerrar, todos los virtual threads deben terminar limpiamente (sin excepciones en consola).
+3. **Close the window**:
+   On close, all virtual threads must terminate cleanly (no exceptions on the console).
 
-4. **Control de jugador**:
-   Las serpientes 0 (flechas) y 1 (WASD) deben responder exclusivamente al teclado, sin giros aleatorios no solicitados.
+4. **Player control**:
+   Snakes 0 (arrows) and 1 (WASD) must respond exclusively to the keyboard, without unsolicited random turns.

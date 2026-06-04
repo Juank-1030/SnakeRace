@@ -1,10 +1,10 @@
 package co.eci.snake.core;
 
 /**
- * Direcciones cardinales para el movimiento de las serpientes.
+ * Cardinal directions for snake movement.
  *
- * Sin cambios con respecto a la versión de referencia (main/).
- * Inmutable y thread-safe por ser un enum de Java.
+ * No changes from the reference version (main/).
+ * Immutable and thread-safe as a Java enum.
  *
  * @see Snake
  * @see Board#step(Snake)

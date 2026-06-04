@@ -19,30 +19,30 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Ventana principal del juego SnakeRace.
+ * Main window of the SnakeRace game.
  *
- * Actualización vs referencia (main/):
- * - snakes: CopyOnWriteArrayList para iteración segura desde EDT
- *   sin locks (R-2 en README, sección 4).
- * - autoPilot: serpientes 0 y 1 con autoPilot=false, 2+ con true
- *   (DR-1 en README, sección 1).
- * - PauseControl: monitor con wait/notifyAll para pausa cooperativa
- *   (DL-1, DL-2 corregidos en README, sección 2).
- * - Shutdown coordinado: exec.shutdownNow() + clock.close() al cerrar
- *   ventana (README, sección 3).
- * - GameClock con cancel/reschedule (BW-1, R-3 en README).
+ * Update vs reference (main/):
+ * - snakes: CopyOnWriteArrayList for safe iteration from EDT
+ *   without locks (R-2 in README, section 4).
+ * - autoPilot: snakes 0 and 1 with autoPilot=false, 2+ with true
+ *   (DR-1 in README, section 1).
+ * - PauseControl: monitor with wait/notifyAll for cooperative pause
+ *   (DL-1, DL-2 fixed in README, section 2).
+ * - Coordinated shutdown: exec.shutdownNow() + clock.close() on
+ *   window close (README, section 3).
+ * - GameClock with cancel/reschedule (BW-1, R-3 in README).
  *
- * Hilos involucrados:
- * 1. EDT — crea la ventana, procesa teclado (flechas/WASD), repinta UI.
- * 2. N VirtualThreads (SnakeRunner) — uno por serpiente, ciclo autónomo.
- * 3. 1 VirtualThread (pauseAndWaitForAll) — temporal, creado al pausar.
- * 4. SchedulerThread (GameClock) — dispara repaint cada 60ms.
+ * Threads involved:
+ * 1. EDT — creates the window, processes keyboard (arrows/WASD), repaints UI.
+ * 2. N VirtualThreads (SnakeRunner) — one per snake, autonomous loop.
+ * 3. 1 VirtualThread (pauseAndWaitForAll) — temporary, created on pause.
+ * 4. SchedulerThread (GameClock) — triggers repaint every 60ms.
  *
  * @see SnakeRunner
  * @see PauseControl
  * @see GameClock
  * @see Board
- * @see <a href="file:../../../../../../README.md">README.md — Parte II, secciones 1-4</a>
+ * @see <a href="file:../../../../../../README.md">README.md — Part II, sections 1-4</a>
  */
 public final class SnakeApp extends JFrame {
 
@@ -175,18 +175,18 @@ public final class SnakeApp extends JFrame {
   }
 
   /**
-   * Alterna entre pausar y reanudar el juego.
+   * Toggles between pausing and resuming the game.
    *
-   * Al pausar:
-   * 1. Cambia el texto del botón a "Resume".
-   * 2. clock.pause() — cancela el ScheduledFuture del repintado.
-   * 3. Crea un virtual thread que llama a pauseControl.pauseAndWaitForAll()
-   *    para esperar a que todos los runners estén bloqueados.
+   * On pause:
+   * 1. Changes the button text to "Resume".
+   * 2. clock.pause() — cancels the ScheduledFuture for repaint.
+   * 3. Creates a virtual thread that calls pauseControl.pauseAndWaitForAll()
+   *    to wait until all runners are blocked.
    *
-   * Al reanudar:
-   * 1. pauseControl.resume() — despierta todos los runners.
-   * 2. clock.resume() — reprograma el tick de repintado.
-   * 3. Restaura el texto del botón a "Action".
+   * On resume:
+   * 1. pauseControl.resume() — wakes all runners.
+   * 2. clock.resume() — reschedules the repaint tick.
+   * 3. Restores the button text to "Action".
    */
   private void togglePause() {
     if ("Action".equals(actionButton.getText())) {
@@ -210,11 +210,11 @@ public final class SnakeApp extends JFrame {
   }
 
   /**
-   * Muestra estadísticas del juego en un diálogo.
-   * Se llama desde el EDT después de que pauseAndWaitForAll() confirma
-   * que todos los runners están bloqueados (estado estable).
+   * Shows game statistics in a dialog.
+   * Called from the EDT after pauseAndWaitForAll() confirms
+   * all runners are blocked (stable state).
    *
-   * Muestra la serpiente viva más larga y las longitudes de todas.
+   * Displays the longest alive snake and the lengths of all snakes.
    */
   private void showStats() {
     Snake longest = snakes.stream()
@@ -230,21 +230,21 @@ public final class SnakeApp extends JFrame {
       sb.append("  Serpiente ").append(i).append(": ")
         .append(snakes.get(i).snapshot().size()).append("\n");
     }
-    JOptionPane.showMessageDialog(this, sb.toString(), "Pausa", JOptionPane.INFORMATION_MESSAGE);
+    JOptionPane.showMessageDialog(this, sb.toString(), "Paused", JOptionPane.INFORMATION_MESSAGE);
   }
 
   /**
-   * Panel de dibujo del juego. Lee el estado del Board y las serpientes
-   * para pintar la cuadrícula, obstáculos, ratones, turbos,
-   * teletransportadores y serpientes en cada repaint.
+   * Game drawing panel. Reads the Board state and snakes
+   * to paint the grid, obstacles, mice, turbos,
+   * teleporters, and snakes on each repaint.
    *
-   * Concurrencia:
-   * - Se ejecuta en el EDT, invocado por GameClock vía
+   * Concurrency:
+   * - Runs on the EDT, invoked by GameClock via
    *   SwingUtilities.invokeLater.
-   * - Llama a board.mice(), board.obstacles(), etc. que usan readLock
-   *   (múltiples lectores simultáneos permitidos).
-   * - Llama a snake.snapshot() que está sincronizado con el monitor de
-   *   Snake, garantizando consistencia.
+   * - Calls board.mice(), board.obstacles(), etc. which use readLock
+   *   (multiple concurrent readers allowed).
+   * - Calls snake.snapshot() which is synchronized on the Snake
+   *   monitor, guaranteeing consistency.
    */
   public static final class GamePanel extends JPanel {
     private final Board board;

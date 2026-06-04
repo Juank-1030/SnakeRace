@@ -1,14 +1,13 @@
 package co.eci.snake.core;
 
 /**
- * Posición en el tablero con wrap-around.
+ * Position on the board with wrap-around.
  *
- * Sin cambios con respecto a la versión de referencia (main/).
- * Es un record de Java, por lo que es inmutable y thread-safe.
+ * No changes from the reference version (main/).
+ * It is a Java record, so it is immutable and thread-safe.
  *
- * El método {@link #wrap(int, int)} aplica la operación módulo
- * no-negativa para que el tablero se "repita" en los bordes
- * (regla del juego: wrap-around).
+ * The {@link #wrap(int, int)} method applies non-negative modulo
+ * so the board "repeats" at the edges (game rule: wrap-around).
  *
  * @see Board#step(Snake)
  */

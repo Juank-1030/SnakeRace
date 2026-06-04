@@ -9,17 +9,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Reloj del juego que controla el repintado de la UI.
+ * Game clock that controls UI repainting.
  *
- * Actualización vs referencia (main/):
- * - Se reemplazó el sondeo de estado (busy-wait) por cancelación del
- *   ScheduledFuture en pause() y reprogramación en resume() (BW-1,
- *   R-3 en README, sección 2 y 4).
- * - tickTask es volatile para visibilidad entre hilos.
- * - start() usa compareAndSet para garantizar inicialización única.
+ * Update vs reference (main/):
+ * - Replaced state polling (busy-wait) with ScheduledFuture
+ *   cancellation on pause() and rescheduling on resume() (BW-1,
+ *   R-3 in README, sections 2 and 4).
+ * - tickTask is volatile for visibility between threads.
+ * - start() uses compareAndSet to guarantee single initialization.
  *
  * @see co.eci.snake.ui.legacy.SnakeApp
- * @see <a href="file:../../../../../../../README.md">README.md — Parte II, sección 2</a>
+ * @see <a href="file:../../../../../../../README.md">README.md — Part II, section 2</a>
  */
 public final class GameClock implements AutoCloseable {
   private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
@@ -35,7 +35,7 @@ public final class GameClock implements AutoCloseable {
     this.tick = java.util.Objects.requireNonNull(tick, "tick");
   }
 
-  /** Inicia el reloj. Solo transiciona de STOPPED a RUNNING. */
+  /** Starts the clock. Only transitions from STOPPED to RUNNING. */
   public void start() {
     if (state.compareAndSet(GameState.STOPPED, GameState.RUNNING)) {
       tickTask = scheduler.scheduleAtFixedRate(tick, 0, periodMillis, TimeUnit.MILLISECONDS);
@@ -43,9 +43,9 @@ public final class GameClock implements AutoCloseable {
   }
 
   /**
-   * Pausa el reloj: cancela el ScheduledFuture para que el scheduler
-   * deje de despertar. cancel(false) espera a que el tick en curso
-   * termine antes de cancelar.
+   * Pauses the clock: cancels the ScheduledFuture so the scheduler
+   * stops waking up. cancel(false) waits for the current tick to
+   * finish before canceling.
    */
   public void pause() {
     state.set(GameState.PAUSED);
@@ -54,7 +54,7 @@ public final class GameClock implements AutoCloseable {
       current.cancel(false);
   }
 
-  /** Reanuda el reloj: reprograma el tick si el estado es PAUSED. */
+  /** Resumes the clock: reschedules the tick if state is PAUSED. */
   public void resume() {
     if (state.compareAndSet(GameState.PAUSED, GameState.RUNNING)) {
       tickTask = scheduler.scheduleAtFixedRate(tick, 0, periodMillis, TimeUnit.MILLISECONDS);

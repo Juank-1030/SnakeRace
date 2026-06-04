@@ -4,16 +4,16 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 
 /**
- * Representa una serpiente en el tablero.
+ * Represents a snake on the board.
  *
- * Actualización vs referencia (main/):
- * - Todos los métodos públicos ahora son synchronized para eliminar
- *   la data race en {@link #body} (CR-1 en README).
- * - {@link #direction} ya no es volatile; se protege con synchronized
- *   para hacer atómica la validación+escritura en {@link #turn} (CR-2).
+ * Update vs reference (main/):
+ * - All public methods are now synchronized to eliminate
+ *   the data race on {@link #body} (CR-1 in README).
+ * - {@link #direction} is no longer volatile; it is protected with synchronized
+ *   to make the validation+write in {@link #turn} atomic (CR-2).
  *
  * @see co.eci.snake.concurrency.SnakeRunner
- * @see <a href="file:../../../../../../README.md">README.md — Parte II, sección 2</a>
+ * @see <a href="file:../../../../../../README.md">README.md — Part II, section 2</a>
  */
 public final class Snake {
   private final Deque<Position> body = new ArrayDeque<>();
@@ -29,16 +29,16 @@ public final class Snake {
     return new Snake(new Position(x, y), dir);
   }
 
-  /** Retorna la dirección actual. Sincronizado para visibilidad entre hilos. */
+  /** Returns the current direction. Synchronized for visibility between threads. */
   public synchronized Direction direction() {
     return direction;
   }
 
   /**
-   * Cambia la dirección de la serpiente.
-   * Sincronizado para que la validación (no giro de 180°) y la escritura
-   * sean atómicas. Sin esto, dos hilos podrían pasar la validación
-   * simultáneamente y escribir direcciones opuestas (CR-2).
+   * Changes the snake's direction.
+   * Synchronized so that the validation (no 180° turn) and the write
+   * are atomic. Without this, two threads could pass the validation
+   * simultaneously and write opposite directions (CR-2).
    */
   public synchronized void turn(Direction dir) {
     if ((direction == Direction.UP && dir == Direction.DOWN) ||
@@ -50,23 +50,23 @@ public final class Snake {
     this.direction = dir;
   }
 
-  /** Retorna la posición de la cabeza. Sincronizado por consistencia con body. */
+  /** Returns the head position. Synchronized for consistency with body. */
   public synchronized Position head() {
     return body.peekFirst();
   }
 
   /**
-   * Retorna una copia defensiva del cuerpo para que el EDT pueda
-   * leerlo sin riesgo de ConcurrentModificationException (CR-1).
+   * Returns a defensive copy of the body so the EDT can
+   * read it without risk of ConcurrentModificationException (CR-1).
    */
   public synchronized Deque<Position> snapshot() {
     return new ArrayDeque<>(body);
   }
 
   /**
-   * Avanza la serpiente a la nueva posición.
-   * Si grow es true, la serpiente crece (maxLength++).
-   * Sincronizado para evitar data race con snapshot() (CR-1).
+   * Advances the snake to the new position.
+   * If grow is true, the snake grows (maxLength++).
+   * Synchronized to avoid data race with snapshot() (CR-1).
    */
   public synchronized void advance(Position newHead, boolean grow) {
     body.addFirst(newHead);

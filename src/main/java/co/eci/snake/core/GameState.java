@@ -1,12 +1,12 @@
 package co.eci.snake.core;
 
 /**
- * Estados del GameClock.
+ * GameClock states.
  *
- * Sin cambios con respecto a la versión de referencia (main/).
- * - STOPPED: antes de start() o después de stop()
- * - RUNNING: el reloj está activo, el scheduler ejecuta ticks
- * - PAUSED: el reloj está pausado, el ScheduledFuture está cancelado
+ * No changes from the reference version (main/).
+ * - STOPPED: before start() or after stop()
+ * - RUNNING: the clock is active, the scheduler executes ticks
+ * - PAUSED: the clock is paused, the ScheduledFuture is canceled
  *
  * @see co.eci.snake.core.engine.GameClock
  */

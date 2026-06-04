@@ -3,13 +3,13 @@ package co.eci.snake.app;
 import co.eci.snake.ui.legacy.SnakeApp;
 
 /**
- * Punto de entrada de la aplicación SnakeRace.
+ * Entry point for the SnakeRace application.
  *
- * Lee la propiedad de sistema {@code snakes} para determinar cuántas
- * serpientes crear (valor por defecto: 2). La propiedad se pasa vía
- * {@code -Dsnakes=N} en la línea de comandos de Maven.
+ * Reads the {@code snakes} system property to determine how many
+ * snakes to create (default: 2). The property is passed via
+ * {@code -Dsnakes=N} on the Maven command line.
  *
- * Sin cambios con respecto a la versión de referencia (main/).
+ * No changes from the reference version (main/).
  *
  * @see SnakeApp
  */

@@ -31,8 +31,8 @@ public class Control extends Thread {
     }
 
     /**
-     * Llamado por cada PrimeFinderThread en su loop.
-     * Si paused==true, el hilo se bloquea aquí hasta que se reanude.
+     * Called by each PrimeFinderThread in its loop.
+     * If paused==true, the thread blocks here until resumed.
      */
     public synchronized void checkPause() throws InterruptedException {
         if (paused) {
@@ -65,11 +65,11 @@ public class Control extends Thread {
             if (!anyAlive())
                 break;
 
-            // 1. Pausar todos los hilos
+            // 1. Pause all threads
             int alive = aliveCount();
             synchronized (this) {
                 paused = true;
-                // Esperar sin busy-wait hasta que todos los hilos vivos estén en wait()
+                // Wait without busy-wait until all alive threads are in wait()
                 while (waitingCount < alive) {
                     try {
                         wait();
@@ -80,28 +80,28 @@ public class Control extends Thread {
                 }
             }
 
-            // 2. Mostrar cuántos primos se han encontrado (fuera de sync, hilos pausados)
+            // 2. Show how many primes have been found (outside sync, threads paused)
             int total = 0;
             for (PrimeFinderThread t : pft) {
                 total += t.getPrimes().size();
             }
-            System.out.println("\n--- PAUSA ---");
-            System.out.println("Primos encontrados hasta ahora: " + total);
-            System.out.print("Presiona ENTER para continuar...");
+            System.out.println("\n--- PAUSE ---");
+            System.out.println("Primes found so far: " + total);
+            System.out.print("Press ENTER to continue...");
 
-            // 3. Esperar ENTER
+            // 3. Wait for ENTER
             scanner.nextLine();
 
-            // 4. Reanudar todos los hilos
+            // 4. Resume all threads
             synchronized (this) {
                 paused = false;
                 notifyAll();
             }
 
-            System.out.println("--- REANUDANDO ---\n");
+            System.out.println("--- RESUMING ---\n");
         }
 
-        // Esperar a que todos terminen para mostrar el total final
+        // Wait for all to finish before showing the final total
         for (PrimeFinderThread t : pft) {
             try {
                 t.join();
@@ -113,7 +113,7 @@ public class Control extends Thread {
         for (PrimeFinderThread t : pft) {
             total += t.getPrimes().size();
         }
-        System.out.println("\n=== FIN: total de primos encontrados entre 0 y " + MAXVALUE + ": " + total + " ===");
+        System.out.println("\n=== END: total primes found between 0 and " + MAXVALUE + ": " + total + " ===");
         scanner.close();
     }
 

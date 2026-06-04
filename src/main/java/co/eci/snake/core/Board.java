@@ -10,22 +10,22 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- * Tablero de juego. Contiene todos los elementos del juego: serpientes,
- * ratones, obstáculos, turbos y teletransportadores.
+ * Game board. Contains all game elements: snakes,
+ * mice, obstacles, turbos, and teleporters.
  *
- * Actualización vs referencia (main/):
- * - Se reemplazó {@code synchronized} por {@link ReentrantReadWriteLock}
- *   para permitir lecturas concurrentes del EDT mientras los runners
- *   se turnan para escribir (R-1 en README, sección 4).
+ * Update vs reference (main/):
+ * - Replaced {@code synchronized} with {@link ReentrantReadWriteLock}
+ *   to allow concurrent reads from the EDT while runners
+ *   take turns writing (R-1 in README, section 4).
  * - getters (mice, obstacles, turbo, teleports) → readLock
  * - step() → writeLock
- * - randomEmpty() sin cambios: sigue siendo privado y llamado solo
- *   desde el constructor o step() (CR-3, CR-4 en README).
+ * - randomEmpty() unchanged: still private and called only
+ *   from the constructor or step() (CR-3, CR-4 in README).
  *
  * @see Snake
  * @see co.eci.snake.concurrency.SnakeRunner
  * @see co.eci.snake.ui.legacy.SnakeApp.GamePanel
- * @see <a href="file:../../../../../../README.md">README.md — Parte II, sección 2</a>
+ * @see <a href="file:../../../../../../README.md">README.md — Part II, section 2</a>
  */
 public final class Board {
   private final int width;
@@ -65,8 +65,8 @@ public final class Board {
   }
 
   /**
-   * Retorna copia defensiva de los ratones.
-   * Adquiere readLock para permitir lecturas concurrentes.
+   * Returns a defensive copy of the mice.
+   * Acquires readLock to allow concurrent reads.
    */
   public Set<Position> mice() {
     rwLock.readLock().lock();
@@ -78,8 +78,8 @@ public final class Board {
   }
 
   /**
-   * Retorna copia defensiva de los obstáculos.
-   * Adquiere readLock para permitir lecturas concurrentes.
+   * Returns a defensive copy of the obstacles.
+   * Acquires readLock to allow concurrent reads.
    */
   public Set<Position> obstacles() {
     rwLock.readLock().lock();
@@ -91,8 +91,8 @@ public final class Board {
   }
 
   /**
-   * Retorna copia defensiva de los turbos.
-   * Adquiere readLock para permitir lecturas concurrentes.
+   * Returns a defensive copy of the turbos.
+   * Acquires readLock to allow concurrent reads.
    */
   public Set<Position> turbo() {
     rwLock.readLock().lock();
@@ -104,8 +104,8 @@ public final class Board {
   }
 
   /**
-   * Retorna copia defensiva de los teletransportadores.
-   * Adquiere readLock para permitir lecturas concurrentes.
+   * Returns a defensive copy of the teleporters.
+   * Acquires readLock to allow concurrent reads.
    */
   public Map<Position, Position> teleports() {
     rwLock.readLock().lock();
@@ -117,15 +117,14 @@ public final class Board {
   }
 
   /**
-   * Ejecuta un paso de una serpiente en el tablero.
+   * Executes one step for a snake on the board.
    *
-   * Adquiere writeLock, por lo que es exclusivo: ningún otro runner
-   * puede ejecutar step() ni ningún lector puede leer mientras esté
-   * en ejecución. Esto garantiza la consistencia de todas las colecciones
-   * del tablero.
+   * Acquires writeLock, so it is exclusive: no other runner
+   * can execute step() and no reader can read while it is
+   * running. This guarantees consistency of all board collections.
    *
-   * @param snake la serpiente que avanza
-   * @return MoveResult indicando qué ocurrió en este paso
+   * @param snake the snake that advances
+   * @return MoveResult indicating what happened in this step
    */
   public MoveResult step(Snake snake) {
     Objects.requireNonNull(snake, "snake");
@@ -178,9 +177,9 @@ public final class Board {
   }
 
   /**
-   * Encuentra una posición aleatoria vacía en el tablero.
-   * NOTA: No adquiere locks propios. Solo debe llamarse desde el
-   * constructor (single-thread) o desde step() (que ya tiene writeLock).
+   * Finds a random empty position on the board.
+   * NOTE: Does not acquire its own locks. Should only be called from the
+   * constructor (single-thread) or from step() (which already holds writeLock).
    */
   private Position randomEmpty() {
     var rnd = ThreadLocalRandom.current();

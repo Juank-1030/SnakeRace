@@ -7,22 +7,22 @@ import co.eci.snake.core.Snake;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Ciclo de vida de una serpiente. Cada SnakeRunner corre en su propio
- * VirtualThread y ejecuta un bucle infinito: pausa cooperativa →
- * giro aleatorio (solo IA) → step en el tablero → sleep.
+ * Life cycle of a snake. Each SnakeRunner runs in its own
+ * VirtualThread and executes an infinite loop: cooperative pause →
+ * random turn (AI only) → step on the board → sleep.
  *
- * Actualización vs referencia (main/):
- * - Se agregó {@link PauseControl} para pausa cooperativa sin
- *   busy-wait (DL-1, DL-2 en README, sección 2).
- * - Se agregó {@code autoPilot} para que las serpientes de jugador
- *   (índices 0 y 1) no giren aleatoriamente (DR-1 en README).
- * - Rebote: al chocar con obstáculo gira, no muere (regla preservada
- *   de main/).
- * - turboTicks: variable local del hilo, no requiere sincronización.
+ * Update vs reference (main/):
+ * - Added {@link PauseControl} for cooperative pause without
+ *   busy-wait (DL-1, DL-2 in README, section 2).
+ * - Added {@code autoPilot} so player snakes (indices 0 and 1)
+ *   do not turn randomly (DR-1 in README).
+ * - Bounce: on obstacle hit it turns, does not die (rule preserved
+ *   from main/).
+ * - turboTicks: thread-local variable, no synchronization needed.
  *
  * @see Board#step(Snake)
  * @see PauseControl
- * @see <a href="file:../../../../../../README.md">README.md — Parte II, sección 2</a>
+ * @see <a href="file:../../../../../../README.md">README.md — Part II, section 2</a>
  */
 public final class SnakeRunner implements Runnable {
   private final Snake snake;
@@ -34,9 +34,9 @@ public final class SnakeRunner implements Runnable {
   private int turboTicks = 0;
 
   /**
-   * @param pauseControl monitor compartido de pausa cooperativa
-   * @param autoPilot    false para serpientes de jugador (solo teclado),
-   *                     true para serpientes IA (giros aleatorios)
+   * @param pauseControl shared cooperative pause monitor
+   * @param autoPilot    false for player snakes (keyboard only),
+   *                     true for AI snakes (random turns)
    */
   public SnakeRunner(Snake snake, Board board, PauseControl pauseControl, boolean autoPilot) {
     this.snake = snake;
@@ -67,14 +67,14 @@ public final class SnakeRunner implements Runnable {
     }
   }
 
-  /** Giro aleatorio probabilístico. Solo se ejecuta si autoPilot=true. */
+  /** Probabilistic random turn. Only executed if autoPilot=true. */
   private void maybeTurn() {
     double p = (turboTicks > 0) ? 0.05 : 0.10;
     if (ThreadLocalRandom.current().nextDouble() < p)
       randomTurn();
   }
 
-  /** Giro aleatorio a una dirección válida cualquiera. */
+  /** Random turn to any valid direction. */
   private void randomTurn() {
     var dirs = Direction.values();
     snake.turn(dirs[ThreadLocalRandom.current().nextInt(dirs.length)]);

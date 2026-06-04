@@ -5,30 +5,30 @@ import co.eci.snake.core.Snake;
 import java.util.List;
 
 /**
- * Monitor de pausa cooperativa para los SnakeRunner.
+ * Cooperative pause monitor for SnakeRunners.
  *
- * Clase nueva, no existía en la versión de referencia (main/).
+ * New class, did not exist in the reference version (main/).
  *
- * Patrón idéntico al Control.java del proyecto Wait-notify:
- * - checkPause()          → llamado por cada runner en cada iteración
- * - pauseAndWaitForAll()  → llamado por la UI; bloquea hasta que TODOS
- *                           los runners estén en wait()
- * - resume()              → llamado por la UI para reanudar el juego
+ * Identical pattern to Control.java from the Wait-notify project:
+ * - checkPause()          → called by each runner in every iteration
+ * - pauseAndWaitForAll()  → called by the UI; blocks until ALL
+ *                           runners are in wait()
+ * - resume()              → called by the UI to resume the game
  *
- * Se usa synchronized + wait() / notifyAll() para evitar busy-waiting.
+ * Uses synchronized + wait() / notifyAll() to avoid busy-waiting.
  *
- * Correcciones de concurrencia (README, sección 2):
- * 1. DL-1: pauseAndWaitForAll() recalcula alive en cada iteración del
- *    while en lugar de calcularlo una vez al inicio. Así, si un runner
- *    termina antes de señalizar, el while no espera para siempre.
- * 2. DL-2: el while también verifica paused, por lo que si el usuario
- *    presiona Resume durante la recolección, la condición se vuelve
- *    falsa y se sale del bucle evitando un deadlock.
- * 3. checkPause() usa try-finally para garantizar waitingCount-- incluso
- *    si el runner recibe InterruptedException dentro del wait().
+ * Concurrency fixes (README, section 2):
+ * 1. DL-1: pauseAndWaitForAll() recalculates alive in each while
+ *    iteration instead of once at the start. Thus if a runner
+ *    finishes before signaling, the while does not wait forever.
+ * 2. DL-2: the while also checks paused, so if the user presses
+ *    Resume during collection, the condition becomes false and
+ *    the loop exits, avoiding a deadlock.
+ * 3. checkPause() uses try-finally to guarantee waitingCount-- even
+ *    if the runner receives InterruptedException inside wait().
  *
  * @see co.eci.snake.concurrency.SnakeRunner
- * @see <a href="file:../../../../../../README.md">README.md — Parte II, sección 2</a>
+ * @see <a href="file:../../../../../../README.md">README.md — Part II, section 2</a>
  */
 public final class PauseControl {
 
@@ -41,12 +41,12 @@ public final class PauseControl {
     }
 
     /**
-     * Llamado por cada SnakeRunner al inicio de cada iteración.
-     * Si el juego está pausado, bloquea el hilo hasta que se llame resume().
-     * Usa while (paused) para protegerse de spurious wakeups.
+     * Called by each SnakeRunner at the start of every iteration.
+     * If the game is paused, blocks the thread until resume() is called.
+     * Uses while (paused) to protect against spurious wakeups.
      *
-     * waitingCount se incrementa antes de wait() y se decrementa en un
-     * finally para evitar fugas si ocurre InterruptedException.
+     * waitingCount is incremented before wait() and decremented in a
+     * finally block to avoid leaks if InterruptedException occurs.
      */
     public synchronized void checkPause() throws InterruptedException {
         if (paused) {
@@ -63,15 +63,15 @@ public final class PauseControl {
     }
 
     /**
-     * Llamado por la UI (en un virtual thread, no en el EDT) para pausar.
-     * Bloquea hasta que TODOS los runners hayan entrado en wait(),
-     * garantizando que el estado del juego es completamente estable.
+     * Called by the UI (in a virtual thread, not the EDT) to pause.
+     * Blocks until ALL runners have entered wait(),
+     * guaranteeing the game state is completely stable.
      *
-     * La condición del while verifica tanto paused como waitingCount:
-     * - paused: si el usuario presiona Resume mientras recolectamos,
-     *   paused=false y salimos del bucle (DL-2).
-     * - waitingCount < snakes.size(): recalcula en cada iteración para
-     *   que si un runner termina entre cálculo y señal, no deadlock (DL-1).
+     * The while condition checks both paused and waitingCount:
+     * - paused: if the user presses Resume while we are collecting,
+     *   paused=false and we exit the loop (DL-2).
+     * - waitingCount < snakes.size(): recalculates each iteration so
+     *   that if a runner finishes between calculation and signal, no deadlock (DL-1).
      */
     public synchronized void pauseAndWaitForAll() throws InterruptedException {
         paused = true;
@@ -80,7 +80,7 @@ public final class PauseControl {
         }
     }
 
-    /** Despierta a todos los runners bloqueados en checkPause(). */
+    /** Wakes up all runners blocked in checkPause(). */
     public synchronized void resume() {
         paused = false;
         notifyAll();
